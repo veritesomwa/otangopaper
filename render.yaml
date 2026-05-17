@@ -1,0 +1,67 @@
+# Render blueprint — auto-detects this file when the repo is connected.
+# See https://render.com/docs/blueprint-spec
+#
+# Defines two services:
+#   1. The Vite frontend, served as a static site from /dist
+#   2. The Express + MongoDB API, run from the bundled /server/dist artefact
+#
+# Edit GitHub repo, region, and plan as needed.
+
+services:
+  # ── Frontend (static) ──────────────────────────────────────────────────
+  - type: web
+    name: otangopaper
+    runtime: static
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist     # Vite outputs here, NOT ./build
+    pullRequestPreviewsEnabled: true
+    # SPA — every URL should serve index.html so the React router resolves.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # Leave VITE_API_URL blank to run the frontend in offline / design-mode.
+      # Set it to your API service URL once the backend is live, e.g.
+      #   https://otangopaper-api.onrender.com
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+
+  # ── Backend (Express API) ──────────────────────────────────────────────
+  - type: web
+    name: otangopaper-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_ENV
+        value: production
+      # Marked sync:false so Render prompts you to enter these per-environment
+      # rather than committing them to the repo. Fill them in from the Render
+      # dashboard once the service is created.
+      - key: PORT
+        value: 4000
+      - key: ALLOWED_ORIGIN
+        sync: false     # e.g. https://otangopaper.onrender.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false

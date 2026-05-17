@@ -1,10 +1,19 @@
+// Left navigation rail. Two modes:
+//   • Desktop ( >= 900px ) → inline column that takes up its 220px slot
+//   • Mobile  ( <  900px ) → fixed drawer that slides in from the left over
+//     a translucent backdrop. The hamburger button in the topbar toggles it.
+
+import { useEffect } from 'react';
 import { Icon } from '@components/common/Icon.jsx';
 import { useAuth } from '@hooks/useAuth.js';
+import { useIsMobile } from '@hooks/useMediaQuery.js';
 import { NavItem } from './NavItem.jsx';
 
-/** Left navigation rail visible on home/dashboard/profile screens. */
-export function Sidebar({ activeNav, setNav, onNewDesign }) {
+const WIDTH = 220;
+
+export function Sidebar({ activeNav, setNav, onNewDesign, open = true, onClose }) {
   const { isAuthenticated } = useAuth();
+  const isMobile = useIsMobile();
 
   // Profile only appears for signed-in users — for everyone else there's
   // nothing meaningful behind it. Sign-out happens via the topbar avatar.
@@ -17,16 +26,75 @@ export function Sidebar({ activeNav, setNav, onNewDesign }) {
     isAuthenticated && { id: 'profile', label: 'Profile', icon: <Icon name="user" /> },
   ].filter(Boolean);
 
-  return (
+  // Esc closes the drawer on mobile
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isMobile, open, onClose]);
+
+  // Lock background scroll while the drawer is open
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [isMobile, open]);
+
+  // Tapping a nav item closes the drawer on mobile.
+  const handleNav = (id) => {
+    setNav(id);
+    if (isMobile) onClose?.();
+  };
+  const handleNewDesign = () => {
+    onNewDesign?.();
+    if (isMobile) onClose?.();
+  };
+
+  // On desktop, when sidebar is hidden, render nothing — the canvas reclaims
+  // the space cleanly. On mobile, we always mount the drawer so the slide
+  // transition can animate; visibility is driven by `open`.
+  if (!isMobile && !open) return null;
+
+  const panel = (
     <div style={{
-      width: 220, background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column', padding: '14px 10px', gap: 2, flexShrink: 0,
-      overflowY: 'auto', transition: 'background 250ms',
+      width: WIDTH, background: 'var(--bg-sidebar)',
+      borderRight: '1px solid var(--border)',
+      display: 'flex', flexDirection: 'column', padding: '14px 10px', gap: 2,
+      flexShrink: 0, overflowY: 'auto',
+      ...(isMobile ? {
+        position: 'fixed', top: 0, left: 0, height: '100dvh',
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0.27, 1)',
+        boxShadow: open ? '0 18px 48px rgba(0,0,0,0.32)' : 'none',
+        zIndex: 110,
+      } : {
+        transition: 'background 250ms',
+      }),
     }}>
+      {/* Close button only inside the mobile drawer */}
+      {isMobile && (
+        <button
+          onClick={onClose}
+          aria-label="Close menu"
+          style={{
+            alignSelf: 'flex-end', width: 32, height: 32, borderRadius: 8,
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: 'var(--fg-secondary)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <Icon name="close" />
+        </button>
+      )}
+
       {navItems.map((n) => (
         <NavItem
           key={n.id} icon={n.icon} label={n.label} badge={n.badge}
-          active={activeNav === n.id} onClick={() => setNav(n.id)}
+          active={activeNav === n.id} onClick={() => handleNav(n.id)}
         />
       ))}
 
@@ -40,9 +108,9 @@ export function Sidebar({ activeNav, setNav, onNewDesign }) {
       </div>
 
       <NavItem icon={<Icon name="plus" />}    label="New design"
-        active={false} onClick={onNewDesign} />
+        active={false} onClick={handleNewDesign} />
       <NavItem icon={<Icon name="sliders" />} label="Settings"
-        active={activeNav === 'settings'} onClick={() => setNav('settings')} />
+        active={activeNav === 'settings'} onClick={() => handleNav('settings')} />
 
       {/* Pro upsell */}
       <div style={{ marginTop: 'auto', paddingTop: 12 }}>
@@ -65,5 +133,28 @@ export function Sidebar({ activeNav, setNav, onNewDesign }) {
         </div>
       </div>
     </div>
+  );
+
+  // On desktop, just render the panel inline. On mobile, wrap it in a
+  // backdrop + the drawer.
+  if (!isMobile) return panel;
+
+  return (
+    <>
+      {/* Translucent backdrop — tap to close */}
+      <div
+        onClick={onClose}
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(2px)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+          transition: 'opacity 180ms',
+          zIndex: 105,
+        }}
+      />
+      {panel}
+    </>
   );
 }

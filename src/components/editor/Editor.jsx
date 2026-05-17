@@ -3,11 +3,13 @@ import { useDocument } from '@hooks/useDocument.js';
 import { TemplateCanvas } from '@components/canvas/TemplateCanvas.jsx';
 
 import { EditorToolbar }    from './EditorToolbar.jsx';
+import { EditorBottomBar }  from './EditorBottomBar.jsx';
 import { ToolStrip }        from './ToolStrip.jsx';
 import { TemplateSwitcher } from './TemplateSwitcher.jsx';
 import { RightPanel }       from './RightPanel.jsx';
 import { ExportModal }      from './ExportModal.jsx';
 import { ZOOM_LIMITS }      from './ZoomControls.jsx';
+import { useIsMobile }      from '@hooks/useMediaQuery.js';
 
 const { MIN: ZMIN, MAX: ZMAX, STEP: ZSTEP } = ZOOM_LIMITS;
 
@@ -29,6 +31,10 @@ export function Editor({ onBack }) {
   const [activeTool, setActiveTool]       = useState('select');
   const [showExport, setShowExport]       = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [leftOpen, setLeftOpen]           = useState(true);
+  const [rightOpen, setRightOpen]         = useState(true);
+
+  const isMobile = useIsMobile();
 
   // The scroll viewport that holds the canvas — used to compute fit-to-viewport.
   const viewportRef = useRef(null);
@@ -84,6 +90,11 @@ export function Editor({ onBack }) {
       if (mod) return;
       if (isEditable) return;
 
+      // Panel toggles — '[' for the left tool palette, ']' for the right tabs.
+      if (e.key === '[')  { e.preventDefault(); setLeftOpen((v) => !v);  return; }
+      if (e.key === ']')  { e.preventDefault(); setRightOpen((v) => !v); return; }
+      if (e.key === '\\') { e.preventDefault(); const next = !(leftOpen && rightOpen); setLeftOpen(next); setRightOpen(next); return; }
+
       const key = e.key.toLowerCase();
       if (key === 'v') setActiveTool('select');
       if (key === 't') setActiveTool('text');
@@ -93,7 +104,7 @@ export function Editor({ onBack }) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, canUndo, canRedo, fitZoom]);
+  }, [undo, redo, canUndo, canRedo, fitZoom, leftOpen, rightOpen]);
 
   // Ctrl/Cmd + wheel zoom on the canvas viewport
   useEffect(() => {
@@ -128,6 +139,7 @@ export function Editor({ onBack }) {
           activeTool={activeTool} setActiveTool={setActiveTool}
           templatesOpen={showTemplates}
           onToggleTemplates={() => setShowTemplates((v) => !v)}
+          open={leftOpen} onToggle={() => setLeftOpen((v) => !v)}
         />
 
         {showTemplates && (
@@ -144,29 +156,56 @@ export function Editor({ onBack }) {
           alignItems: 'flex-start', justifyContent: 'center', overflow: 'auto',
           padding: '40px 24px', position: 'relative',
         }}>
-          <div className="scale-in" style={{
-            transform: `scale(${zoom})`, transformOrigin: 'top center',
-            boxShadow: '0 12px 56px rgba(0,0,0,0.4)', borderRadius: 2,
-            flexShrink: 0, transition: 'transform 200ms',
-            // CSS variables consumed by the global stylesheet rules below.
-            '--ot-font-scale':  fontScale,
-            '--ot-line-height': lineHeight,
-            '--ot-section-gap': `${sectionGap}px`,
-            '--ot-bullet':      bulletCharFor(bulletStyle),
-            '--ot-list-style':  listStyleFor(bulletStyle),
+          {/* OUTER box — takes up the *scaled* footprint so the viewport's
+              scroll area grows / shrinks with the zoom. Without this, CSS
+              transforms only rescale the paint output, not the layout box,
+              and zooming in would render content that the user can't scroll
+              to. flex-shrink:0 keeps the page at its full scaled width even
+              when narrower than the viewport. */}
+          <div style={{
+            width:   (pageSize?.width  || 595) * zoom,
+            height:  (pageSize?.height || 842) * zoom,
+            flexShrink: 0, position: 'relative',
+            transition: 'width 200ms, height 200ms',
           }}>
-            <TemplateCanvas
-              ref={canvasRef}
-              template={tpl} sections={sections} person={person}
-              readOnly={false} fontPair={fontPair} pageSize={pageSize}
-              onPatch={patchPath}
-              onPatchSections={setSections}
-            />
+            {/* INNER box — the actual page at its natural pixel size, then
+                scaled visually. NOT `.scale-in` — that class's animation
+                holds transform: scale(1) via animation-fill-mode and would
+                stomp our inline transform, defeating the zoom entirely. */}
+            <div style={{
+              width:  pageSize?.width  || 595,
+              height: pageSize?.height || 842,
+              transform:       `scale(${zoom})`,
+              transformOrigin: 'top left',
+              transition:      'transform 200ms',
+              boxShadow:       '0 12px 56px rgba(0,0,0,0.4)',
+              borderRadius:    2,
+              // CSS variables consumed by the global stylesheet rules below.
+              '--ot-font-scale':  fontScale,
+              '--ot-line-height': lineHeight,
+              '--ot-section-gap': `${sectionGap}px`,
+              '--ot-bullet':      bulletCharFor(bulletStyle),
+              '--ot-list-style':  listStyleFor(bulletStyle),
+            }}>
+              <TemplateCanvas
+                ref={canvasRef}
+                template={tpl} sections={sections} person={person}
+                readOnly={false} fontPair={fontPair} pageSize={pageSize}
+                onPatch={patchPath}
+                onPatchSections={setSections}
+              />
+            </div>
           </div>
         </div>
 
-        <RightPanel />
+        <RightPanel open={rightOpen} onToggle={() => setRightOpen((v) => !v)} />
       </div>
+
+      {/* Mobile-only second toolbar holding the formatting tools that don't
+          fit in the slim mobile top bar. */}
+      {isMobile && (
+        <EditorBottomBar zoom={zoom} setZoom={setZoom} onFitZoom={fitZoom} />
+      )}
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
     </div>

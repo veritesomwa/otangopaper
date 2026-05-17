@@ -4,6 +4,7 @@ import { Logo, Wordmark } from '@components/common/Logo.jsx';
 import { useTheme } from '@hooks/useTheme.js';
 import { useAuth }  from '@hooks/useAuth.js';
 import { useToast } from '@hooks/useToast.js';
+import { useIsMobile } from '@hooks/useMediaQuery.js';
 import { NotificationsDropdown } from './NotificationsDropdown.jsx';
 
 /**
@@ -17,16 +18,22 @@ import { NotificationsDropdown } from './NotificationsDropdown.jsx';
  */
 export function Topbar({
   searchVal, onSearch, isEditor, onNewDesign, onGoHome, onSignInClick,
+  // Slot reserved for a future nav-hamburger that will collapse the
+  // desktop-only right-cluster items (search / create / theme / bell) into a
+  // single dropdown on mobile. The sidebar hamburger has moved out of the
+  // topbar and now lives inside the page content (see SidebarToggle).
+  onOpenNavMenu,
 }) {
   const { theme, toggleTheme }    = useTheme();
   const { user, isAuthenticated } = useAuth();
+  const isMobile = useIsMobile();
 
   return (
     <div style={{
       height: 56, background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border)',
-      display: 'flex', alignItems: 'center', padding: '0 18px', gap: 14, flexShrink: 0, zIndex: 100,
+      display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0, zIndex: 100,
     }}>
-      {/* Logo — clickable, returns to Home */}
+      {/* Logo + wordmark — also the "banner" the user identified on mobile. */}
       <button
         type="button"
         onClick={onGoHome}
@@ -44,7 +51,8 @@ export function Topbar({
         <Wordmark />
       </button>
 
-      {!isEditor && (
+      {/* ─── Desktop-only items ────────────────────────────────────────── */}
+      {!isMobile && !isEditor && (
         <div style={{ flex: 1, maxWidth: 380, position: 'relative', marginLeft: 8 }}>
           <span style={{
             position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
@@ -68,37 +76,84 @@ export function Topbar({
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-        <IconButton title="Toggle theme" onClick={toggleTheme}>
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-        </IconButton>
+      {/* Push the right cluster all the way over on mobile (no search to take
+          up the middle). */}
+      {isMobile && <div style={{ flex: 1 }} />}
 
-        <NotificationsDropdown />
-
-        {!isEditor && (
-          <button onClick={onNewDesign} style={{
-            background: 'linear-gradient(135deg,#1756C8,#00C8D4)', color: '#fff', border: 'none',
-            borderRadius: 999, padding: '8px 18px', fontFamily: "'DM Sans', sans-serif",
-            fontWeight: 600, fontSize: 13, cursor: 'pointer',
-            boxShadow: '0 3px 12px rgba(23, 86, 200,0.38)',
-            display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms',
-          }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1';   e.currentTarget.style.transform = 'translateY(0)'; }}
-          >
-            <Icon name="plus" /> Create
-          </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {!isMobile && (
+          <>
+            <IconButton title="Toggle theme" onClick={toggleTheme}>
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+            </IconButton>
+            <NotificationsDropdown />
+            {!isEditor && (
+              <button onClick={onNewDesign} style={{
+                background: 'linear-gradient(135deg,#1756C8,#00C8D4)', color: '#fff', border: 'none',
+                borderRadius: 999, padding: '8px 18px', fontFamily: "'DM Sans', sans-serif",
+                fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                boxShadow: '0 3px 12px rgba(23, 86, 200,0.38)',
+                display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms',
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1';   e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <Icon name="plus" /> Create
+              </button>
+            )}
+          </>
         )}
 
+        {/* Profile / sign-in — visible on both desktop AND mobile. On mobile we
+            also surface a separate Sign-out icon so the user doesn't have to
+            open the dropdown to log out. */}
         {isAuthenticated
-          ? <UserMenu user={user} />
+          ? <>
+              <UserMenu user={user} mobile={isMobile} />
+              {isMobile && <SignOutButton />}
+            </>
           : <SignInButton onClick={onSignInClick} />}
+
+        {/* Slot for the future nav-hamburger on mobile. Renders nothing
+            until App.jsx wires onOpenNavMenu. */}
+        {isMobile && onOpenNavMenu && (
+          <IconButton title="More" onClick={onOpenNavMenu}>
+            <Icon name="menu" />
+          </IconButton>
+        )}
       </div>
     </div>
   );
 }
 
 /* ── Sign-in button (visible when signed-out) ─────────────────────────── */
+
+/* Direct sign-out — used on mobile so it's reachable without opening the
+   avatar dropdown. Plain icon button styled like the theme/notif icons. */
+function SignOutButton() {
+  const { logout }          = useAuth();
+  const { push: pushToast } = useToast();
+  const onClick = async () => {
+    try { await logout(); pushToast('Signed out', { type: 'success' }); }
+    catch (e) { pushToast(e.message || 'Sign out failed', { type: 'error' }); }
+  };
+  return (
+    <button
+      onClick={onClick}
+      title="Sign out"
+      style={{
+        width: 34, height: 34, borderRadius: 8, background: 'transparent', border: 'none',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--fg-secondary)', transition: 'all 150ms',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = '#EF4444'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';        e.currentTarget.style.color = 'var(--fg-secondary)'; }}
+    >
+      {/* Door-out style glyph reusing existing icons. */}
+      <Icon name="back" />
+    </button>
+  );
+}
 
 function SignInButton({ onClick }) {
   return (

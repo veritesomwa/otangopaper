@@ -24,8 +24,36 @@ const TABS = [
   { id: 'suggestions', label: 'Tips',      emoji: '💡'      },
 ];
 
-/** Right panel with three tabs: Sections / Design / Templates. */
-export function RightPanel() {
+/** Right panel with tabs: Sections / Design / Templates / AI / Tips.
+ *  Accepts open + onToggle so the editor can collapse it to a thin chevron
+ *  rail (and the canvas reclaims that width). */
+export function RightPanel({ open = true, onToggle }) {
+  // When collapsed, render a thin 22px rail with just the expand chevron.
+  if (!open) {
+    return (
+      <div style={{
+        width: 22, background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        paddingTop: 10, flexShrink: 0,
+      }}>
+        <button
+          title="Show panel (])" onClick={onToggle}
+          style={{
+            width: 22, height: 28, borderRadius: 6, padding: 0,
+            background: 'transparent', border: '1px solid var(--border)',
+            color: 'var(--fg-tertiary)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 130ms',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = '#5C90FF'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';        e.currentTarget.style.color = 'var(--fg-tertiary)'; }}
+        >
+          <Icon name="chevronL" size={12} strokeWidth={2.2} />
+        </button>
+      </div>
+    );
+  }
+
   const {
     template, sections, accent, fontPair, person,
     setSections, setAccent, setFontPair, applyAI, patchPerson,
@@ -68,10 +96,27 @@ export function RightPanel() {
   return (
     <div style={{
       width: 248, background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column', flexShrink: 0,
+      display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'relative',
     }}>
+      {/* Collapse chevron — pinned to the inner edge so it stays accessible. */}
+      <button
+        title="Hide panel (])" onClick={onToggle}
+        style={{
+          position: 'absolute', top: 8, left: 6, zIndex: 2,
+          width: 22, height: 24, borderRadius: 6, padding: 0,
+          background: 'transparent', border: '1px solid var(--border)',
+          color: 'var(--fg-tertiary)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 130ms',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = '#5C90FF'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';        e.currentTarget.style.color = 'var(--fg-tertiary)'; }}
+      >
+        <Icon name="chevronR" size={12} strokeWidth={2.2} />
+      </button>
+
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', padding: '0 6px' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', padding: '0 6px 0 32px' }}>
         {TABS.map((t) => {
           const active = tab === t.id;
           return (

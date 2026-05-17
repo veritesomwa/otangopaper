@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Topbar }          from '@components/layout/Topbar.jsx';
 import { Sidebar }         from '@components/layout/Sidebar.jsx';
+import { SidebarToggle }   from '@components/layout/SidebarToggle.jsx';
 import { TweaksPanel }     from '@components/layout/TweaksPanel.jsx';
 import { OnboardingModal } from '@components/onboarding/OnboardingModal.jsx';
 import { Dashboard }       from '@components/dashboard/Dashboard.jsx';
@@ -19,6 +20,7 @@ import { useAuth }         from '@hooks/useAuth.js';
 import { useDocument }     from '@hooks/useDocument.js';
 import { useTemplates }    from '@hooks/useTemplates.js';
 import { useLocalStorage } from '@hooks/useLocalStorage.js';
+import { useIsMobile }     from '@hooks/useMediaQuery.js';
 
 /**
  * Top-level routing + chrome.
@@ -55,6 +57,14 @@ function MainApp() {
   const [magicCategory, setMagicCategory]   = useState(null);
   const [showOnboarding, setShowOnboarding] = useLocalStorage('otango.onboarding.shown', true);
   const [showLogin, setShowLogin]           = useState(false);
+
+  // Sidebar visibility — open by default. Hides as a drawer on mobile and
+  // collapses to nothing on desktop when the user toggles it off.
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile);
+  // Whenever we move across the desktop/mobile boundary, reset to the sensible
+  // default for that breakpoint.
+  useEffect(() => { setSidebarOpen(!isMobile); }, [isMobile]);
 
   const isEditor = screen === 'editor';
   const isMagic  = screen === 'magic';
@@ -107,10 +117,22 @@ function MainApp() {
             activeNav={activeNav}
             setNav={handleNavChange}
             onNewDesign={() => openTemplate(templates[0])}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
           />
         )}
 
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* The sidebar hamburger lives here — inside the content area,
+              NOT in the topbar — so the future nav-hamburger can take the
+              topbar slot. Hidden inside the editor where there's no
+              sidebar to toggle. */}
+          {!isEditor && (
+            <SidebarToggle
+              open={sidebarOpen}
+              onToggle={() => setSidebarOpen((v) => !v)}
+            />
+          )}
           {renderScreen()}
         </div>
       </div>

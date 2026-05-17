@@ -1,17 +1,22 @@
 import { Icon } from '@components/common/Icon.jsx';
 import { TemplateThumbnail } from '@components/canvas/TemplateThumbnail.jsx';
 import { useTemplates } from '@hooks/useTemplates.js';
+import { useIsMobile } from '@hooks/useMediaQuery.js';
 
 /** Big gradient promo banner at the top of the dashboard. */
 export function HeroBanner({ onStart }) {
   const { templates } = useTemplates();
+  const isMobile = useIsMobile();
 
   return (
     <div className="fade-up" style={{
       background: 'linear-gradient(135deg, rgba(23, 86, 200,0.18) 0%, rgba(0, 200, 212,0.10) 100%)',
       border: '1px solid rgba(23, 86, 200,0.25)', borderRadius: 18,
-      padding: '28px 32px 26px', marginBottom: 36,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24,
+      padding: isMobile ? '22px 20px 20px' : '28px 32px 26px',
+      marginBottom: 36,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 24,
+      maxWidth: '100%', overflow: 'hidden',  // belt-and-braces against any stray overflow
     }}>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -70,23 +75,27 @@ export function HeroBanner({ onStart }) {
         </div>
       </div>
 
-      {/* Mini template preview stack */}
-      <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'flex-end' }}>
-        {templates.slice(0, 3).map((t, i) => (
-          <div key={t.id}
-            onClick={onStart}
-            style={{
-              borderRadius: 8, overflow: 'hidden',
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-              transform: `translateY(${i === 1 ? -8 : 0}px) rotate(${i === 0 ? -3 : i === 2 ? 3 : 0}deg)`,
-              transition: 'transform 300ms', cursor: 'pointer',
-            }}
-          >
-            <TemplateThumbnail template={t} scale={0.14} />
-          </div>
-        ))}
-      </div>
+      {/* Mini template preview stack — desktop only. On mobile the stack
+          overlays the screen edge and forces horizontal scroll, so we drop
+          it entirely there. The text + CTA still anchor the section. */}
+      {!isMobile && (
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'flex-end' }}>
+          {templates.slice(0, 3).map((t, i) => (
+            <div key={t.id}
+              onClick={onStart}
+              style={{
+                borderRadius: 8, overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                transform: `translateY(${i === 1 ? -8 : 0}px) rotate(${i === 0 ? -3 : i === 2 ? 3 : 0}deg)`,
+                transition: 'transform 300ms', cursor: 'pointer',
+              }}
+            >
+              <TemplateThumbnail template={t} scale={0.14} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

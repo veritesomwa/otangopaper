@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from '@components/common/Icon.jsx';
 import { useDocument } from '@hooks/useDocument.js';
 import { useToast }    from '@hooks/useToast.js';
+import { useIsMobile } from '@hooks/useMediaQuery.js';
 import { exportShareLink } from '@services/exportService.js';
 import { ToolBtn, VDivider } from './ToolBtn.jsx';
 import { ZoomControls }      from './ZoomControls.jsx';
@@ -46,6 +47,69 @@ export function EditorToolbar({ zoom, setZoom, onFitZoom, onBack, onExport }) {
   // mousedown is suppressed by the surrounding label so contentEditable
   // doesn't lose its selection before the colour change lands.
   const handleColor = (e) => applyFormat('foreColor', e.target.value);
+
+  const isMobile = useIsMobile();
+
+  // ── Mobile top bar — only the items the user explicitly asked to keep up
+  //    top: back, doc name, save indicator, undo/redo, share, export. All
+  //    formatting tools live in the new bottom bar (see EditorBottomBar).
+  if (isMobile) {
+    return (
+      <div style={{
+        height: 50, background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, flexShrink: 0, zIndex: 5,
+      }}>
+        <ToolBtn icon={<Icon name="back" />} label="Back to home" onClick={onBack} />
+
+        {editingName ? (
+          <input
+            ref={nameRef} defaultValue={docName} autoFocus
+            onBlur={(e) => { setDocName(e.target.value || 'My Document'); setEditingName(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur(); }}
+            style={{
+              background: 'var(--bg-elevated)', border: '1px solid #1756C8', borderRadius: 6,
+              padding: '4px 8px', fontSize: 12, fontWeight: 500, color: 'var(--fg-primary)',
+              fontFamily: "'DM Sans', sans-serif", outline: 'none',
+              flex: 1, minWidth: 0,
+            }}
+          />
+        ) : (
+          <span
+            onClick={() => setEditingName(true)}
+            style={{
+              flex: 1, minWidth: 0,
+              fontSize: 12, fontWeight: 500, color: 'var(--fg-primary)',
+              cursor: 'text', padding: '4px 6px', borderRadius: 6,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}
+          >{docName}</span>
+        )}
+
+        <span title={saved ? 'Saved' : 'Saving…'} style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: saved ? '#22C55E' : '#F59E0B',
+          flexShrink: 0, marginRight: 2,
+        }} />
+
+        <ToolBtn icon={<Icon name="undo" style={{ opacity: canUndo ? 1 : 0.35 }} />}
+          label="Undo" onClick={canUndo ? undo : undefined} />
+        <ToolBtn icon={<Icon name="redo" style={{ opacity: canRedo ? 1 : 0.35 }} />}
+          label="Redo" onClick={canRedo ? redo : undefined} />
+
+        <ToolBtn icon={<Icon name="share" />} label="Share" onClick={handleShare} />
+
+        <button onClick={onExport} style={{
+          background: 'linear-gradient(135deg,#1756C8,#00C8D4)', border: 'none', color: '#fff',
+          borderRadius: 999, padding: '7px 12px', fontFamily: "'DM Sans', sans-serif",
+          fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+          boxShadow: '0 3px 12px rgba(23, 86, 200,0.35)',
+        }}>
+          <Icon name="download" /> Export
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{
