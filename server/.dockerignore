@@ -1,0 +1,18 @@
+# Anything not needed inside the image — keeps the build context tiny.
+
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+
+.git
+.github
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+README.md

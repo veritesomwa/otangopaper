@@ -1,0 +1,27 @@
+{
+  "name": "otango-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Otango backend — Express + Google OAuth + email/password auth, MongoDB-backed.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev":        "node --watch src/index.js",
+    "start":      "node src/index.js",
+    "build":      "node build.js",
+    "start:prod": "node dist/server.js",
+    "clean":      "rm -rf dist"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "google-auth-library": "^9.14.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

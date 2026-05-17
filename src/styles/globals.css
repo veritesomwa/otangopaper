@@ -1,0 +1,111 @@
+/* Reset + base layout + animations. Imported once from main.jsx. */
+
+@import './theme.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* App shell */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  transition: background 250ms, color 250ms;
+  overflow: hidden;
+}
+
+/* Animations */
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.fade-up  { animation: fadeUp  0.32s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.fade-in  { animation: fadeIn  0.22s ease both; }
+.scale-in { animation: scaleIn 0.30s cubic-bezier(0.34, 1.15, 0.64, 1) both; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 99px; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); }
+
+/* Tweaks panel */
+#tweaks-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  width: 230px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  font-family: 'DM Sans', sans-serif;
+}
+#tweaks-panel.open { display: flex; animation: scaleIn 0.22s cubic-bezier(0.34, 1.2, 0.64, 1); }
+
+.tw-label  { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--fg-tertiary); margin-bottom: 6px; }
+.tw-row    { display: flex; gap: 6px; flex-wrap: wrap; }
+.tw-chip   { padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); color: var(--fg-secondary); background: transparent; transition: all 130ms; font-family: 'DM Sans', sans-serif; }
+.tw-chip.on { background: rgba(23, 86, 200, 0.18); border-color: #1756C8; color: #5C90FF; }
+.tw-swatch { width: 24px; height: 24px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: transform 120ms; }
+.tw-swatch.on { border-color: white; transform: scale(1.15); box-shadow: 0 0 0 2px #1756C8; }
+
+/* ─── Editor format overrides ─────────────────────────────────────────────
+ * These rules read CSS variables set on the canvas wrapper in Editor.jsx
+ * (--ot-font-scale, --ot-line-height, --ot-section-gap, --ot-list-style,
+ * --ot-bullet) and apply them globally to every contentEditable text node
+ * inside the canvas, plus to <ul>/<li> and section dividers. Adjusting the
+ * sliders in the Design tab changes these vars and the document re-renders.
+ */
+
+[data-otango-canvas] [data-otango-editable] {
+  /* scale relative to the styled parent (templates set fontSize in px on a
+   * wrapper span, the contentEditable child inherits 1em, then we multiply). */
+  font-size:   calc(1em * var(--ot-font-scale, 1));
+  line-height: var(--ot-line-height, 1.5);
+}
+
+/* List bullets — switch the bullet glyph the templates render with <li>. */
+[data-otango-canvas] ul {
+  list-style-type: var(--ot-list-style, disc);
+}
+
+/* Custom bullets (dash / arrow) — swap the marker via ::marker. */
+[data-otango-canvas] ul li::marker {
+  content: var(--ot-bullet, '');
+}
+[data-otango-canvas] ul li {
+  /* Make sure the ::marker has room for the custom glyph. */
+  padding-left: 2px;
+}
+
+/* Extra spacing between sections — applied to every direct child of the
+ * canvas root that the template uses as a section block. */
+[data-otango-canvas] [data-otango-section] {
+  margin-bottom: calc(var(--ot-section-gap, 0px));
+}

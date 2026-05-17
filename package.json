@@ -1,0 +1,23 @@
+{
+  "name": "otango",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Otango — a Canva-style document builder for resumes, cover letters, newsletters, certificates, business cards and more.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "dev:server":  "npm --prefix ./server run dev",
+    "start:server": "npm --prefix ./server start",
+    "install:all": "npm install && npm --prefix ./server install"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.10"
+  }
+}

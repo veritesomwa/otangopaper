@@ -1,0 +1,33 @@
+/* Theme tokens. Switched at runtime via [data-theme] on <html>. */
+
+[data-theme="dark"] {
+  --bg-base:       #0D1117;
+  --bg-surface:    #1A1F2E;
+  --bg-elevated:   #232838;
+  --bg-overlay:    #2C3244;
+  --bg-sidebar:    #141820;
+  --bg-canvas:     #1E2332;
+  --fg-primary:    #F4F7FC;
+  --fg-secondary:  #A8B0C0;
+  --fg-tertiary:   #7C8698;
+  --fg-disabled:   #3E4454;
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --shadow:        0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] {
+  --bg-base:       #F4F7FC;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #FFFFFF;
+  --bg-overlay:    #F0F4FA;
+  --bg-sidebar:    #FFFFFF;
+  --bg-canvas:     #E8ECF2;
+  --fg-primary:    #0D1117;
+  --fg-secondary:  #3E4454;
+  --fg-tertiary:   #7C8698;
+  --fg-disabled:   #A8B0C0;
+  --border:        rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --shadow:        0 4px 20px rgba(0, 0, 0, 0.10);
+}

@@ -1,0 +1,17 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#1756C8"/>
+      <stop offset="100%" stop-color="#00C8D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#fb)"/>
+  <!-- Paper sheet -->
+  <path d="M 18 14 L 38 14 L 48 24 L 48 48 Q 48 50 46 50 L 20 50 Q 18 50 18 48 Z"
+        fill="#FFFFFF"/>
+  <path d="M 38 14 L 48 24 L 38 24 Z" fill="#B3D4FF"/>
+  <!-- Lines -->
+  <rect x="23" y="30" width="16" height="2" rx="1" fill="#1756C8"/>
+  <rect x="23" y="35" width="20" height="2" rx="1" fill="#1756C8" opacity="0.6"/>
+  <rect x="23" y="40" width="13" height="2" rx="1" fill="#1756C8" opacity="0.6"/>
+</svg>
