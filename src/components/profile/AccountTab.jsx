@@ -1,8 +1,10 @@
 import { useToast } from '@hooks/useToast.js';
+import { useIsMobile } from '@hooks/useMediaQuery.js';
 
 /** Plan comparison + storage gauge. */
 export function AccountTab() {
   const { push: pushToast } = useToast();
+  const isMobile = useIsMobile();
   const handleUpgrade = () =>
     pushToast('Pro checkout coming soon — your wishlist has been noted.', { type: 'info' });
   const freeFeatures = ['6 templates', '3 PDF exports/month', 'Otango watermark', 'Community support'];
@@ -13,7 +15,11 @@ export function AccountTab() {
 
   return (
     <div className="fade-up">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 20 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        gap: isMobile ? 14 : 18, marginBottom: 20,
+      }}>
         {/* Free */}
         <div style={{
           background: 'var(--bg-surface)', borderRadius: 16, padding: 24,

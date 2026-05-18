@@ -10,14 +10,16 @@ import { aiTools } from '@services/aiTools.js';
 
 // Each tool is one row in the panel.
 const TOOLS = [
-  { id: 'improve',  label: 'Improve Resume',     desc: 'Strengthen verbs across all bullets', scope: 'global', emoji: '✨' },
-  { id: 'summary',  label: 'Generate Summary',   desc: 'Write a fresh professional summary',  scope: 'global', emoji: '📝' },
-  { id: 'ats',      label: 'ATS Optimization',   desc: 'Score keyword coverage + suggest',    scope: 'global', emoji: '🎯' },
-  { id: 'tailor',   label: 'Tailor for Job',     desc: 'Match resume against a JD',           scope: 'jd',     emoji: '🧭' },
-  { id: 'rewrite',  label: 'Rewrite Pro',        desc: 'Make it sound more professional',     scope: 'field',  emoji: '🪄' },
-  { id: 'grammar',  label: 'Fix Grammar',        desc: 'Typos, casing, punctuation',          scope: 'field',  emoji: '🛠' },
-  { id: 'shorten',  label: 'Shorten Text',       desc: 'Trim to ~70% of length',              scope: 'field',  emoji: '✂️' },
-  { id: 'expand',   label: 'Expand Content',     desc: 'Add detail + impact clauses',         scope: 'field',  emoji: '📈' },
+  { id: 'improve',     label: 'Improve Resume',     desc: 'Strengthen verbs across all bullets',          scope: 'global', emoji: '✨' },
+  { id: 'summary',     label: 'Generate Summary',   desc: 'Role-aware summary from your title + work',    scope: 'global', emoji: '📝' },
+  { id: 'bullets',     label: 'Suggest Bullets',    desc: 'Strong, role-tailored bullet starters',        scope: 'global', emoji: '💡' },
+  { id: 'skillRole',   label: 'Suggest Skills',     desc: 'Common skills for your job title',             scope: 'global', emoji: '🧰' },
+  { id: 'ats',         label: 'ATS Optimization',   desc: 'Score keyword coverage + suggest',             scope: 'global', emoji: '🎯' },
+  { id: 'tailor',      label: 'Tailor for Job',     desc: 'Match resume against a JD',                    scope: 'jd',     emoji: '🧭' },
+  { id: 'rewrite',     label: 'Rewrite Pro',        desc: 'Make it sound more professional',              scope: 'field',  emoji: '🪄' },
+  { id: 'grammar',     label: 'Fix Grammar',        desc: 'Typos, casing, punctuation',                   scope: 'field',  emoji: '🛠' },
+  { id: 'shorten',     label: 'Shorten Text',       desc: 'Trim to ~70% of length',                       scope: 'field',  emoji: '✂️' },
+  { id: 'expand',      label: 'Expand Content',     desc: 'Add detail + impact clauses',                  scope: 'field',  emoji: '📈' },
 ];
 
 export function AIToolsPanel() {
@@ -79,8 +81,24 @@ export function AIToolsPanel() {
         case 'summary': {
           const text = await aiTools.generateSummary(person);
           patchPath('summary', text);
-          setResult({ kind: 'message', text: 'Summary regenerated.' });
+          setResult({ kind: 'message', text: `Summary regenerated for "${person.title || 'your role'}".` });
           pushToast('Summary regenerated', { type: 'success' });
+          break;
+        }
+        case 'bullets': {
+          const r = await aiTools.suggestBullets(person);
+          // Show the user's literal title in the toast / result panel — the
+          // `domain` field is just the internal library bucket we matched.
+          const roleLabel = (person.title && person.title.trim()) || r.domain;
+          setResult({ kind: 'bullets', ...r, roleLabel });
+          pushToast(`Suggested ${r.bullets.length} bullets for ${roleLabel}`, { type: 'success' });
+          break;
+        }
+        case 'skillRole': {
+          const r = await aiTools.suggestSkillsForRole(person);
+          const roleLabel = (person.title && person.title.trim()) || r.domain;
+          setResult({ kind: 'skillsRole', ...r, roleLabel });
+          pushToast(`Suggested ${r.suggested.length} skills for ${roleLabel}`, { type: 'success' });
           break;
         }
         case 'ats': {
@@ -136,7 +154,7 @@ export function AIToolsPanel() {
     }
   }
 
-  /** Add the suggested skills from an ATS / Tailor result. */
+  /** Add the suggested skills from an ATS / Tailor / Role result. */
   function addSkills(skills) {
     if (!skills?.length) return;
     const existing = new Set((person.skills || []).map((s) => s.toLowerCase()));
@@ -146,8 +164,21 @@ export function AIToolsPanel() {
     pushToast(`Added ${skills.length} skill${skills.length === 1 ? '' : 's'}`, { type: 'success' });
   }
 
+  /** Append a suggested bullet to the top-most experience entry. */
+  function addBullet(bullet) {
+    const exp = person.experience || [];
+    if (exp.length === 0) {
+      pushToast('Add a role first, then bullets land in it.', { type: 'info' });
+      return;
+    }
+    const ei = 0;
+    const current = exp[ei].bullets || [];
+    patchPath(`experience.${ei}.bullets`, [...current, bullet]);
+    pushToast(`Added to ${exp[ei].company || 'first role'}`, { type: 'success' });
+  }
+
   return (
-    <div style={{ padding: '14px 12px', overflowY: 'auto', flex: 1 }}>
+    <div data-otango-yellow-scroll style={{ padding: '14px 12px', overflowY: 'auto', flex: 1 }}>
       {/* Per-field target picker */}
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>Target text</label>
@@ -192,7 +223,7 @@ export function AIToolsPanel() {
       </div>
 
       {/* Result panel */}
-      {result && <ResultPanel result={result} addSkills={addSkills} />}
+      {result && <ResultPanel result={result} addSkills={addSkills} addBullet={addBullet} />}
     </div>
   );
 }
@@ -223,7 +254,7 @@ function ToolRow({ tool, busy, onClick }) {
   );
 }
 
-function ResultPanel({ result, addSkills }) {
+function ResultPanel({ result, addSkills, addBullet }) {
   if (result.kind === 'message') {
     return (
       <div style={resultBoxStyle}>
@@ -266,6 +297,72 @@ function ResultPanel({ result, addSkills }) {
               Add all to Skills
             </button>
           </>
+        )}
+      </div>
+    );
+  }
+  if (result.kind === 'bullets') {
+    return (
+      <div style={resultBoxStyle}>
+        <div style={{ fontSize: 10, color: 'var(--fg-tertiary)', marginBottom: 6 }}>
+          Tailored for <strong>{result.roleLabel || result.domain}</strong> · tap any line to add it to your first role.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {result.bullets.map((b, i) => (
+            <button key={i} onClick={() => addBullet(b)} style={{
+              textAlign: 'left', padding: '7px 9px', borderRadius: 7,
+              background: 'var(--bg-surface)', border: '1px solid var(--border)',
+              color: 'var(--fg-secondary)', cursor: 'pointer', fontSize: 10.5,
+              lineHeight: 1.5,
+            }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1756C8'; e.currentTarget.style.color = 'var(--fg-primary)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--fg-secondary)'; }}
+            >+ {b}</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 9.5, color: 'var(--fg-tertiary)', marginTop: 7 }}>
+          Placeholders like <code>{'{N}'}</code> and <code>{'{feature}'}</code> are prompts — fill them in on the canvas.
+        </div>
+      </div>
+    );
+  }
+  if (result.kind === 'skillsRole') {
+    return (
+      <div style={resultBoxStyle}>
+        <div style={{ fontSize: 10, color: 'var(--fg-tertiary)', marginBottom: 6 }}>
+          Common skills for <strong>{result.roleLabel || result.domain}</strong>.
+        </div>
+        {result.alreadyHave.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-primary)' }}>
+              ✓ Already in your resume:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, margin: '4px 0 8px' }}>
+              {result.alreadyHave.map((s) => (
+                <span key={s} style={{ ...chipStyle, background: '#22C55E18', color: '#15803D', borderColor: '#22C55E33' }}>{s}</span>
+              ))}
+            </div>
+          </>
+        )}
+        {result.suggested.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-primary)', marginTop: 4 }}>
+              Suggested to add:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, margin: '4px 0 8px' }}>
+              {result.suggested.map((s) => (
+                <span key={s} style={chipStyle}>{s}</span>
+              ))}
+            </div>
+            <button onClick={() => addSkills(result.suggested)} style={primaryBtnStyle}>
+              Add all to Skills
+            </button>
+          </>
+        )}
+        {result.suggested.length === 0 && (
+          <div style={{ fontSize: 10.5, color: 'var(--fg-secondary)' }}>
+            Looks like your skills already cover the common ones for this role.
+          </div>
         )}
       </div>
     );

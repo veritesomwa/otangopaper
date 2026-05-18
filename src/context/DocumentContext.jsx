@@ -136,12 +136,19 @@ export function DocumentProvider({ children }) {
   const setSectionGap  = useCallback((n) => { setSectionGapRaw(clamp(n, 0, 32));        markDirty(); }, [markDirty]);
   const setBulletStyle = useCallback((s) => { setBulletStyleRaw(String(s || 'disc'));   markDirty(); }, [markDirty]);
 
-  const open = useCallback((tpl) => {
+  /**
+   * Open a template fresh. `seedProfile` is the user's saved Profile sub-doc
+   * (from AuthContext); when present, it shallow-overrides DEFAULT_PERSON so
+   * name/email/title/etc. are pre-filled without forcing the user to retype
+   * common info. Pass nothing for the legacy behaviour (DEFAULT_PERSON only).
+   */
+  const open = useCallback((tpl, seedProfile) => {
     setTemplateRaw(tpl);
     setAccentRaw(tpl?.accent || '#1756C8');
     setFontPairRaw(FONT_PAIRS[0]);
     setSectionsRaw(clone(DEFAULT_SECTIONS));
-    setPersonRaw(clone(DEFAULT_PERSON));
+    const seededPerson = mergePerson(DEFAULT_PERSON, seedProfile);
+    setPersonRaw(clone(seededPerson));
     setPageSizeRaw(DEFAULT_PAGE_SIZE);
     setDocNameRaw(tpl?.name || 'My Document');
     setFontScaleRaw(1);
@@ -152,7 +159,7 @@ export function DocumentProvider({ children }) {
     // Reset history to start fresh on this doc
     setHistory([clone({
       template: tpl,
-      sections: DEFAULT_SECTIONS, person: DEFAULT_PERSON,
+      sections: DEFAULT_SECTIONS, person: seededPerson,
       accent: tpl?.accent || '#1756C8', fontPair: FONT_PAIRS[0],
       pageSize: DEFAULT_PAGE_SIZE, docName: tpl?.name || 'My Document',
       fontScale: 1, lineHeight: 1.5, sectionGap: 0, bulletStyle: 'disc',
@@ -239,6 +246,25 @@ export function DocumentProvider({ children }) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+/** Merge a saved profile into the DEFAULT_PERSON seed. Only fields that are
+ *  defined and non-empty in the profile override defaults — that way, a
+ *  freshly-saved Profile without (say) `experience` still inherits the demo
+ *  experience block from DEFAULT_PERSON. */
+function mergePerson(defaults, profile) {
+  if (!profile || typeof profile !== 'object') return defaults;
+  const out = { ...defaults };
+  for (const [k, v] of Object.entries(profile)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'string' && v.trim() === '') continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    out[k] = v;
+  }
+  // The avatar control writes to person.photoUrl, but the profile form keeps
+  // an `avatarUrl` alias — accept either.
+  if (!out.photoUrl && profile.avatarUrl) out.photoUrl = profile.avatarUrl;
+  return out;
 }
 
 function clamp(n, lo, hi) {

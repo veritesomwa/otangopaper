@@ -1,10 +1,14 @@
 import { useRef, useState } from 'react';
 import { useToast } from '@hooks/useToast.js';
+import { useAuth } from '@hooks/useAuth.js';
+import { useIsMobile } from '@hooks/useMediaQuery.js';
 import { FormField } from './FormField.jsx';
 
 /** Personal info form + avatar upload + password fields. */
 export function ProfileTab({ profile, setProfile }) {
   const { push: pushToast } = useToast();
+  const { updateProfile }   = useAuth();
+  const isMobile = useIsMobile();
 
   const [name, setName]                   = useState(profile.name);
   const [email, setEmail]                 = useState(profile.email);
@@ -20,11 +24,19 @@ export function ProfileTab({ profile, setProfile }) {
 
   const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const handleSave = () => {
-    setProfile({ ...profile, name, email, title, website, bio, avatarUrl });
-    setSaved(true);
-    pushToast('Profile updated', { type: 'success' });
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    const patch = { name, email, title, website, bio, photoUrl: avatarUrl };
+    setProfile({ ...profile, ...patch, avatarUrl });
+    try {
+      // Persist the reusable resume seed so every new template auto-fills
+      // these fields. Works in offline mode too (localStorage fallback).
+      await updateProfile(patch);
+      setSaved(true);
+      pushToast('Profile saved — new templates will reuse this info.', { type: 'success' });
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      pushToast(err.message || 'Could not save profile', { type: 'error' });
+    }
   };
 
   const handlePhotoUpload = (e) => {
@@ -63,7 +75,11 @@ export function ProfileTab({ profile, setProfile }) {
   };
 
   return (
-    <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+    <div className="fade-up" style={{
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: isMobile ? 16 : 24,
+    }}>
       <Card title="Personal information">
         <FormField label="Full name" value={name} onChange={setName} placeholder="Your full name" />
         <FormField label="Job title" value={title} onChange={setTitle} placeholder="e.g. Product Designer" />
@@ -161,8 +177,10 @@ function Avatar({ avatarUrl, initials }) {
 function Card({ title, children }) {
   return (
     <div style={{
-      background: 'var(--bg-surface)', borderRadius: 16, padding: 24,
+      background: 'var(--bg-surface)', borderRadius: 16,
+      padding: 'clamp(16px, 4vw, 24px)',  // shrink padding on narrow viewports
       border: '1px solid var(--border)',
+      minWidth: 0,  // allow the grid cell to shrink and let textareas reflow
     }}>
       <div style={{
         fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 15,

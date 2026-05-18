@@ -4,6 +4,22 @@
 
 import { apiFetch, isOffline, setToken, clearToken } from './api.js';
 
+// localStorage key used for offline profile persistence. We store it under
+// the same auth namespace as the token so signing out can clear it cleanly.
+const OFFLINE_PROFILE_KEY = 'otango.auth.profile';
+
+function readOfflineProfile() {
+  try {
+    const raw = localStorage.getItem(OFFLINE_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+function writeOfflineProfile(patch) {
+  const next = { ...readOfflineProfile(), ...(patch || {}) };
+  try { localStorage.setItem(OFFLINE_PROFILE_KEY, JSON.stringify(next)); } catch {}
+  return next;
+}
+
 const STUB_USER = {
   id: 'local-user',
   name: 'Alexandra Chen',
@@ -14,13 +30,28 @@ const STUB_USER = {
   isAdmin: false,
   hasPassword: false,
   hasGoogle: false,
+  profile: {},
 };
 
 export const authService = {
   /** Look up the current user from the stored token. */
   async me() {
-    if (isOffline()) return STUB_USER;
-    return apiFetch('/auth/me');
+    if (isOffline()) return { ...STUB_USER, profile: readOfflineProfile() };
+    const me = await apiFetch('/auth/me');
+    return { ...me, profile: me.profile || {} };
+  },
+
+  /**
+   * Save the reusable resume profile. Merges shallowly into user.profile and
+   * returns the updated user. In offline / design mode the profile is kept
+   * in localStorage so the seeding still works without a backend.
+   */
+  async updateProfile(patch) {
+    if (isOffline()) {
+      const profile = writeOfflineProfile(patch);
+      return { profile };
+    }
+    return apiFetch('/auth/profile', { method: 'PATCH', body: patch });
   },
 
   /**
@@ -81,3 +112,7 @@ export const authService = {
     clearToken();
   },
 };
+
+// Re-export for components that want raw offline access (e.g. seeding from
+// localStorage before AuthContext has hydrated).
+export { readOfflineProfile };

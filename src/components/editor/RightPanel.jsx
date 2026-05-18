@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@components/common/Icon.jsx';
 import { TemplateThumbnail } from '@components/canvas/TemplateThumbnail.jsx';
 import { useDocument }  from '@hooks/useDocument.js';
 import { useTemplates } from '@hooks/useTemplates.js';
+import { useLocalStorage } from '@hooks/useLocalStorage.js';
 import { FONT_PAIRS }   from '@data/fontPairs.js';
 
 import { SectionRow }       from './SectionRow.jsx';
@@ -24,42 +25,71 @@ const TABS = [
   { id: 'suggestions', label: 'Tips',      emoji: '💡'      },
 ];
 
+const RIGHT_PANEL_DEFAULT_W = 248;
+const RIGHT_PANEL_MIN_W     = 200;
+const RIGHT_PANEL_MAX_W     = 520;
+const RIGHT_PANEL_RAIL_W    = 22;
+const RIGHT_PANEL_TRANSITION = 'width 240ms cubic-bezier(0.32, 0.72, 0.27, 1)';
+
 /** Right panel with tabs: Sections / Design / Templates / AI / Tips.
  *  Accepts open + onToggle so the editor can collapse it to a thin chevron
- *  rail (and the canvas reclaims that width). */
+ *  rail. Width is animated so the panel slides in / out instead of popping. */
 export function RightPanel({ open = true, onToggle }) {
-  // When collapsed, render a thin 22px rail with just the expand chevron.
-  if (!open) {
-    return (
-      <div style={{
-        width: 22, background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        paddingTop: 10, flexShrink: 0,
-      }}>
-        <button
-          title="Show panel (])" onClick={onToggle}
-          style={{
-            width: 22, height: 28, borderRadius: 6, padding: 0,
-            background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--fg-tertiary)', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 130ms',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = '#5C90FF'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';        e.currentTarget.style.color = 'var(--fg-tertiary)'; }}
-        >
-          <Icon name="chevronL" size={12} strokeWidth={2.2} />
-        </button>
-      </div>
-    );
-  }
-
   const {
     template, sections, accent, fontPair, person,
     setSections, setAccent, setFontPair, applyAI, patchPerson,
     fontScale, lineHeight, sectionGap, bulletStyle,
     setFontScale, setLineHeight, setSectionGap, setBulletStyle,
   } = useDocument();
+
+  // ── Resize state ──────────────────────────────────────────────────────
+  // Persisted in localStorage so the user's preferred width survives
+  // refresh / reopen. Pinch within the min/max range on every read in case
+  // the stored value is stale.
+  const [storedWidth, setStoredWidth] = useLocalStorage(
+    'otango.editor.rightPanelW', RIGHT_PANEL_DEFAULT_W,
+  );
+  const width = clamp(Number(storedWidth) || RIGHT_PANEL_DEFAULT_W,
+                      RIGHT_PANEL_MIN_W, RIGHT_PANEL_MAX_W);
+  const [dragging, setDragging] = useState(false);
+  // Captured at drag-start so movement calcs are relative to the initial
+  // pointer position rather than re-reading the current width each frame.
+  const dragRef = useRef({ startX: 0, startW: 0 });
+
+  function onResizeStart(e) {
+    if (!open) return;
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startW: width };
+    setDragging(true);
+  }
+
+  // While dragging, listen on window so the cursor doesn't have to stay on
+  // the handle. The panel grows when the cursor moves LEFT (because it's
+  // anchored on the right).
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      const dx = dragRef.current.startX - e.clientX;
+      const next = clamp(dragRef.current.startW + dx, RIGHT_PANEL_MIN_W, RIGHT_PANEL_MAX_W);
+      setStoredWidth(next);
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    // Block text selection while dragging.
+    const prev = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor     = 'ew-resize';
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      document.body.style.userSelect = prev;
+      document.body.style.cursor     = '';
+    };
+  }, [dragging, setStoredWidth]);
+
+  // Double-click the handle to reset to the default width.
+  const onResizeDoubleClick = () => setStoredWidth(RIGHT_PANEL_DEFAULT_W);
   const { templates } = useTemplates();
 
   const [tab, setTab]                       = useState('sections');
@@ -95,12 +125,42 @@ export function RightPanel({ open = true, onToggle }) {
 
   return (
     <div style={{
-      width: 248, background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)',
+      width: open ? width : RIGHT_PANEL_RAIL_W,
+      background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'relative',
+      overflow: 'hidden',  // hide content as the panel shrinks
+      // Skip the transition while the user is actively dragging so the panel
+      // tracks the cursor 1:1; restore it for the open/close animation.
+      transition: dragging ? 'none' : RIGHT_PANEL_TRANSITION,
     }}>
-      {/* Collapse chevron — pinned to the inner edge so it stays accessible. */}
+      {/* Drag handle — a 6px-wide invisible strip pinned to the inner edge.
+          Cursor turns into the ew-resize chevron; drag to grow / shrink;
+          double-click to reset to the default width. Hidden while collapsed. */}
+      {open && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panel"
+          title="Drag to resize · double-click to reset"
+          onMouseDown={onResizeStart}
+          onDoubleClick={onResizeDoubleClick}
+          style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0,
+            width: 6, cursor: 'ew-resize', zIndex: 3,
+            // Faint blue tint while dragging — helps confirm the drag is live.
+            background: dragging ? 'rgba(23,86,200,0.18)' : 'transparent',
+            transition: 'background 120ms',
+          }}
+          // Hover hint
+          onMouseEnter={(e) => { if (!dragging) e.currentTarget.style.background = 'rgba(23,86,200,0.10)'; }}
+          onMouseLeave={(e) => { if (!dragging) e.currentTarget.style.background = 'transparent'; }}
+        />
+      )}
+      {/* Collapse / expand chevron — pinned to the inner edge so it stays
+          reachable in both states. The icon flips with `open`. */}
       <button
-        title="Hide panel (])" onClick={onToggle}
+        title={open ? 'Hide panel (])' : 'Show panel (])'}
+        onClick={onToggle}
         style={{
           position: 'absolute', top: 8, left: 6, zIndex: 2,
           width: 22, height: 24, borderRadius: 6, padding: 0,
@@ -112,9 +172,19 @@ export function RightPanel({ open = true, onToggle }) {
         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = '#5C90FF'; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';        e.currentTarget.style.color = 'var(--fg-tertiary)'; }}
       >
-        <Icon name="chevronR" size={12} strokeWidth={2.2} />
+        <Icon name={open ? 'chevronR' : 'chevronL'} size={12} strokeWidth={2.2} />
       </button>
 
+      {/* Inner content — width tracks the wrapper so the tabs/forms reflow
+          as the user resizes. Opacity fades it out when the panel collapses
+          so the slide animation stays clean. */}
+      <div style={{
+        width: open ? width : RIGHT_PANEL_DEFAULT_W,
+        display: 'flex', flexDirection: 'column', flex: 1,
+        opacity: open ? 1 : 0,
+        pointerEvents: open ? 'auto' : 'none',
+        transition: dragging ? 'none' : 'opacity 180ms ease, width 180ms ease',
+      }}>
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', padding: '0 6px 0 32px' }}>
         {TABS.map((t) => {
@@ -135,7 +205,7 @@ export function RightPanel({ open = true, onToggle }) {
         })}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+      <div data-otango-yellow-scroll style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
         {tab === 'sections' && (
           <SectionsTab
             sections={sections}
@@ -169,6 +239,7 @@ export function RightPanel({ open = true, onToggle }) {
 
         {tab === 'ai'          && <AIToolsPanel />}
         {tab === 'suggestions' && <AISuggestionsPanel />}
+      </div>
       </div>
     </div>
   );
@@ -436,3 +507,5 @@ function Section({ label, children }) {
     </div>
   );
 }
+
+function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }

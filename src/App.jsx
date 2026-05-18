@@ -21,6 +21,7 @@ import { useDocument }     from '@hooks/useDocument.js';
 import { useTemplates }    from '@hooks/useTemplates.js';
 import { useLocalStorage } from '@hooks/useLocalStorage.js';
 import { useIsMobile }     from '@hooks/useMediaQuery.js';
+import { useAppRoute }     from '@hooks/useAppRoute.js';
 
 /**
  * Top-level routing + chrome.
@@ -49,12 +50,19 @@ export default function App() {
 function MainApp() {
   const { templates }            = useTemplates();
   const { open, switchTemplate } = useDocument();
-  const { isAuthenticated }      = useAuth();
+  const { isAuthenticated, profile } = useAuth();
 
-  const [screen, setScreen]                 = useState('home');   // 'home' | 'magic' | 'editor'
-  const [activeNav, setActiveNav]           = useState('home');
+  // ── Routing ──────────────────────────────────────────────────────────────
+  // Hash drives navigation state, so the browser back / forward buttons
+  // navigate inside the app instead of leaving the site. Screens / nav id /
+  // magic category all live in the URL. See useAppRoute.js.
+  const { route, navigate } = useAppRoute();
+  const { screen, activeNav, magicCategory } = route;
+  const setScreen        = (s, opts = {}) => navigate({ screen: s }, opts);
+  const setActiveNav     = (id)            => navigate({ activeNav: id });
+  const setMagicCategory = (c)             => navigate({ magicCategory: c });
+
   const [searchVal, setSearchVal]           = useState('');
-  const [magicCategory, setMagicCategory]   = useState(null);
   const [showOnboarding, setShowOnboarding] = useLocalStorage('otango.onboarding.shown', true);
   const [showLogin, setShowLogin]           = useState(false);
 
@@ -69,36 +77,33 @@ function MainApp() {
   const isEditor = screen === 'editor';
   const isMagic  = screen === 'magic';
 
-  /** Open a template fresh — wipes person/sections back to defaults. */
+  /** Open a template fresh — wipes person/sections back to defaults, but
+   *  pre-seeded with the user's saved profile so name/email/etc. carry over. */
   const openTemplate = (tpl) => {
     if (!tpl) tpl = templates[0];
     if (!tpl) return;
-    open(tpl);
-    setScreen('editor');
+    open(tpl, profile);
+    navigate({ screen: 'editor', activeNav: null, magicCategory: null });
   };
 
   /** Pick a template at the end of the magic wizard. Preserves user data. */
   const chooseTemplateFromMagic = (tpl) => {
     if (!tpl) return;
     switchTemplate(tpl);
-    setScreen('editor');
+    navigate({ screen: 'editor', activeNav: null, magicCategory: null });
   };
 
   const launchMagic = (category = null) => {
-    setActiveNav('magic');
-    setMagicCategory(category);
-    setScreen('magic');
+    navigate({ screen: 'magic', activeNav: 'magic', magicCategory: category });
   };
 
   const goHome = () => {
-    setScreen('home');
-    setActiveNav('home');
+    navigate({ screen: 'home', activeNav: 'home', magicCategory: null });
   };
 
   const handleNavChange = (id) => {
-    setActiveNav(id);
-    if (id === 'magic') { setScreen('magic'); return; }
-    if (screen !== 'home') setScreen('home');
+    if (id === 'magic') { navigate({ screen: 'magic', activeNav: 'magic', magicCategory: null }); return; }
+    navigate({ screen: 'home', activeNav: id, magicCategory: null });
   };
 
   return (
@@ -109,6 +114,7 @@ function MainApp() {
         onNewDesign={() => openTemplate(templates[0])}
         onGoHome={goHome}
         onSignInClick={() => setShowLogin(true)}
+        onViewProfile={() => handleNavChange('profile')}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

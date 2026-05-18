@@ -109,3 +109,40 @@ body {
 [data-otango-canvas] [data-otango-section] {
   margin-bottom: calc(var(--ot-section-gap, 0px));
 }
+
+/* ─── Yellow scrollbar for the editor right panel ──────────────────────────
+ * Style matches the MacBook traffic-light minimise button yellow (~ #FEBC2E),
+ * thinned to 8px so it doesn't take real estate from the form controls.
+ * Applied to any element tagged data-otango-yellow-scroll.
+ *
+ * Firefox honours scrollbar-color + scrollbar-width directly.
+ * WebKit / Blink (Chrome / Safari / Edge) use ::-webkit-scrollbar.
+ */
+
+[data-otango-yellow-scroll] {
+  scrollbar-width: thin;
+  scrollbar-color: #FEBC2E transparent;
+}
+[data-otango-yellow-scroll]::-webkit-scrollbar {
+  width:  8px;
+  height: 8px;
+}
+[data-otango-yellow-scroll]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-otango-yellow-scroll]::-webkit-scrollbar-thumb {
+  background: #FEBC2E;
+  border-radius: 999px;
+  /* Inset border lets a touch of the track show through, so the thumb looks
+   * like a pill rather than a solid bar. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  min-height: 36px;
+}
+[data-otango-yellow-scroll]::-webkit-scrollbar-thumb:hover {
+  background: #FFA500;
+  background-clip: padding-box;
+}
+[data-otango-yellow-scroll]::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -2,6 +2,7 @@ import { useDocument } from '@hooks/useDocument.js';
 import { StepContainer } from '../StepContainer.jsx';
 import { MagicStepNav }  from '../MagicStepNav.jsx';
 import { Field } from '../Field.jsx';
+import { getRoleProfile } from '@services/aiTools.js';
 
 /** Multiple jobs — each with company, role, period, bullets. */
 export function ExperienceStep({ step, magic }) {
@@ -82,6 +83,12 @@ export function ExperienceStep({ step, magic }) {
 }
 
 function BulletsEditor({ bullets, onChange }) {
+  const { person } = useDocument();
+  const role = getRoleProfile(person);
+  // Prefer the literal job title the user typed; fall back to the matched
+  // role bucket name only when the title is empty.
+  const roleLabel = (person.title && person.title.trim()) || role.domain;
+
   const setAt = (i, v) => {
     const next = [...bullets]; next[i] = v; onChange(next);
   };
@@ -89,7 +96,14 @@ function BulletsEditor({ bullets, onChange }) {
     const next = bullets.filter((_, idx) => idx !== i);
     onChange(next.length ? next : ['']);
   };
-  const add = () => onChange([...bullets, '']);
+  const add = (text = '') => onChange([...bullets, text]);
+
+  // Role-aware suggestion chips. Reads the *current* person.title — so if the
+  // user changed it inside the magic tool the suggestions adapt live; if they
+  // left it as whatever was seeded from their saved Profile, those still
+  // apply. Already-used bullets are hidden.
+  const used = new Set(bullets.map((b) => (b || '').trim()).filter(Boolean));
+  const suggestions = (role.bullets || []).filter((s) => !used.has(s)).slice(0, 5);
 
   return (
     <div style={{ marginTop: 4 }}>
@@ -122,11 +136,49 @@ function BulletsEditor({ bullets, onChange }) {
         </div>
       ))}
 
-      <button onClick={add} style={{
+      <button onClick={() => add()} style={{
         background: 'transparent', border: 'none', cursor: 'pointer',
         fontFamily: "'DM Sans', sans-serif", fontSize: 12,
         color: '#5C90FF', padding: '4px 0',
       }}>+ Add bullet</button>
+
+      {/* Role-tailored suggestion chips — click one to drop it in. */}
+      {suggestions.length > 0 && (
+        <div style={{
+          marginTop: 10, padding: '10px 12px', borderRadius: 10,
+          background: 'rgba(23,86,200,0.06)', border: '1px dashed rgba(23,86,200,0.25)',
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
+            color: '#5C90FF', marginBottom: 6,
+          }}>
+            ✨ Suggested for <strong>{roleLabel}</strong>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  // Drop into the first empty slot, or append.
+                  const idx = bullets.findIndex((b) => !b || b.trim() === '');
+                  if (idx >= 0) setAt(idx, s);
+                  else add(s);
+                }}
+                title="Click to insert — tweak the placeholders after"
+                style={{
+                  fontSize: 11, padding: '5px 9px', borderRadius: 999,
+                  background: 'var(--bg-surface)', border: '1px solid rgba(23,86,200,0.35)',
+                  color: 'var(--fg-secondary)', cursor: 'pointer',
+                  textAlign: 'left', maxWidth: '100%',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#1756C812'; e.currentTarget.style.color = 'var(--fg-primary)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.color = 'var(--fg-secondary)'; }}
+              >+ {s.length > 56 ? s.slice(0, 56) + '…' : s}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

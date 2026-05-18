@@ -30,8 +30,32 @@ export function publicProfile(user) {
     hasPassword:   !!u.passwordHash || !!user.passwordHash,
     hasGoogle:     !!u.googleSub,
     emailVerified: !!u.emailVerified,
+    profile:       u.profile || {},
     createdAt:     u.createdAt,
   };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Profile (reusable resume seed). Shallow-merge the patch into user.profile.
+ * Nested arrays/objects in the patch fully replace the current value — caller
+ * is responsible for splicing experience/education arrays before sending.
+ * ────────────────────────────────────────────────────────────────────────── */
+export async function updateProfile(userId, patch) {
+  if (!userId) {
+    const err = new Error('Not authenticated.'); err.status = 401; throw err;
+  }
+  if (!patch || typeof patch !== 'object') {
+    const err = new Error('Invalid profile patch.'); err.status = 400; throw err;
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error('User not found.'); err.status = 404; throw err;
+  }
+  user.profile = { ...(user.profile || {}), ...patch };
+  // Tell Mongoose the Mixed field changed — otherwise it won't persist.
+  user.markModified('profile');
+  await user.save();
+  return user;
 }
 
 export async function findById(id) {

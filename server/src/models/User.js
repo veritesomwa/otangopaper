@@ -29,6 +29,12 @@ const userSchema = new Schema({
   emailVerified: { type: Boolean, default: false },
 
   isAdmin:       { type: Boolean, default: false },
+
+  // Reusable resume profile — seeded into every new document the user opens
+  // so they don't have to re-type contact info / bio across templates. Stays
+  // as a free-form sub-doc because templates may want richer fields later
+  // (skills, experience, education, languages, hobbies, references, etc.).
+  profile: { type: Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 
 // Strip sensitive fields from JSON serialisations.

@@ -88,7 +88,7 @@ export function AISuggestionsPanel() {
   };
 
   return (
-    <div style={{ padding: '14px 12px', overflowY: 'auto', flex: 1 }}>
+    <div data-otango-yellow-scroll style={{ padding: '14px 12px', overflowY: 'auto', flex: 1 }}>
       {/* Score header */}
       <div style={{
         padding: '14px 12px', borderRadius: 12, background: 'var(--bg-elevated)',

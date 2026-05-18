@@ -23,6 +23,8 @@ export function Topbar({
   // single dropdown on mobile. The sidebar hamburger has moved out of the
   // topbar and now lives inside the page content (see SidebarToggle).
   onOpenNavMenu,
+  // Called when the avatar dropdown's "Profile" item is clicked.
+  onViewProfile,
 }) {
   const { theme, toggleTheme }    = useTheme();
   const { user, isAuthenticated } = useAuth();
@@ -76,11 +78,12 @@ export function Topbar({
         </div>
       )}
 
-      {/* Push the right cluster all the way over on mobile (no search to take
-          up the middle). */}
-      {isMobile && <div style={{ flex: 1 }} />}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* Right cluster — pinned to the far right on both desktop AND mobile
+          via marginLeft:auto so the items never float back to the centre. */}
+      <div style={{
+        marginLeft: 'auto',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
         {!isMobile && (
           <>
             <IconButton title="Toggle theme" onClick={toggleTheme}>
@@ -104,14 +107,10 @@ export function Topbar({
           </>
         )}
 
-        {/* Profile / sign-in — visible on both desktop AND mobile. On mobile we
-            also surface a separate Sign-out icon so the user doesn't have to
-            open the dropdown to log out. */}
+        {/* Profile avatar / sign-in — sign-out and "View profile" both live
+            inside the avatar dropdown, no separate sign-out icon. */}
         {isAuthenticated
-          ? <>
-              <UserMenu user={user} mobile={isMobile} />
-              {isMobile && <SignOutButton />}
-            </>
+          ? <UserMenu user={user} onViewProfile={onViewProfile} />
           : <SignInButton onClick={onSignInClick} />}
 
         {/* Slot for the future nav-hamburger on mobile. Renders nothing
@@ -127,33 +126,6 @@ export function Topbar({
 }
 
 /* ── Sign-in button (visible when signed-out) ─────────────────────────── */
-
-/* Direct sign-out — used on mobile so it's reachable without opening the
-   avatar dropdown. Plain icon button styled like the theme/notif icons. */
-function SignOutButton() {
-  const { logout }          = useAuth();
-  const { push: pushToast } = useToast();
-  const onClick = async () => {
-    try { await logout(); pushToast('Signed out', { type: 'success' }); }
-    catch (e) { pushToast(e.message || 'Sign out failed', { type: 'error' }); }
-  };
-  return (
-    <button
-      onClick={onClick}
-      title="Sign out"
-      style={{
-        width: 34, height: 34, borderRadius: 8, background: 'transparent', border: 'none',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--fg-secondary)', transition: 'all 150ms',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = '#EF4444'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';        e.currentTarget.style.color = 'var(--fg-secondary)'; }}
-    >
-      {/* Door-out style glyph reusing existing icons. */}
-      <Icon name="back" />
-    </button>
-  );
-}
 
 function SignInButton({ onClick }) {
   return (
@@ -177,7 +149,7 @@ function SignInButton({ onClick }) {
 
 /* ── User dropdown (visible when signed-in) ───────────────────────────── */
 
-function UserMenu({ user }) {
+function UserMenu({ user, onViewProfile }) {
   const { logout }          = useAuth();
   const { push: pushToast } = useToast();
   const [open, setOpen]     = useState(false);
@@ -265,20 +237,42 @@ function UserMenu({ user }) {
               }}>ADMIN</span>
             )}
           </div>
+          {/* Profile — opens the Profile screen. Hidden if the host didn't
+              pass onViewProfile (e.g. embedded surfaces). */}
+          {onViewProfile && (
+            <button
+              onClick={() => { setOpen(false); onViewProfile(); }}
+              style={menuItemStyle}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <Icon name="user" size={14} />
+              <span>Profile</span>
+            </button>
+          )}
+
           <button onClick={handleSignOut} style={{
-            display: 'flex', width: '100%', padding: '10px 16px',
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--fg-secondary)', fontFamily: "'DM Sans', sans-serif",
-            fontSize: 12.5, textAlign: 'left',
+            ...menuItemStyle,
+            color: '#EF4444',
           }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-          >Sign out</button>
+          >
+            <Icon name="back" size={14} />
+            <span>Sign out</span>
+          </button>
         </div>
       )}
     </div>
   );
 }
+
+const menuItemStyle = {
+  display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '10px 16px',
+  background: 'transparent', border: 'none', cursor: 'pointer',
+  color: 'var(--fg-secondary)', fontFamily: "'DM Sans', sans-serif",
+  fontSize: 12.5, textAlign: 'left',
+};
 
 /* ── Small icon button used by theme toggle ───────────────────────────── */
 

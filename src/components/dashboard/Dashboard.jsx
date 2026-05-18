@@ -11,6 +11,7 @@ import { CategoryStrip } from './CategoryStrip.jsx';
 import { TemplateCard }  from './TemplateCard.jsx';
 import { RecentCard }    from './RecentCard.jsx';
 import { NewDesignCard } from './NewDesignCard.jsx';
+import { ScrollReveal }  from '@components/common/ScrollReveal.jsx';
 
 /**
  * Home / dashboard screen. Three sections, top to bottom:
@@ -56,9 +57,13 @@ export function Dashboard({ onOpenTemplate, onLaunchMagic, externalSearch }) {
               display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px,1fr))', gap: 14,
             }}>
               {recent.map((d, i) => (
-                <RecentCard key={d.id} design={d} onOpen={onOpenTemplate} idx={i} />
+                <ScrollReveal key={d.id} delay={Math.min(i * 40, 240)}>
+                  <RecentCard design={d} onOpen={onOpenTemplate} idx={i} />
+                </ScrollReveal>
               ))}
-              <NewDesignCard onClick={startNew} />
+              <ScrollReveal delay={Math.min(recent.length * 40, 240)}>
+                <NewDesignCard onClick={startNew} />
+              </ScrollReveal>
             </div>
           </div>
         )}
@@ -82,7 +87,12 @@ export function Dashboard({ onOpenTemplate, onLaunchMagic, externalSearch }) {
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(168px,1fr))', gap: 16,
           }}>
             {filtered.map((t, i) => (
-              <TemplateCard key={t.id} tpl={t} onOpen={onOpenTemplate} idx={i} />
+              // Stagger by index, modulo a row-width window so a long grid
+              // doesn't take forever to finish. Each card animates in as it
+              // crosses the viewport edge via IntersectionObserver.
+              <ScrollReveal key={t.id} delay={Math.min((i % 16) * 35, 540)}>
+                <TemplateCard tpl={t} onOpen={onOpenTemplate} idx={i} />
+              </ScrollReveal>
             ))}
           </div>
 

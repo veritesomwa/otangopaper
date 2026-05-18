@@ -13,7 +13,7 @@ import { Router } from 'express';
 import { verifyGoogleIdToken } from '../services/googleVerify.js';
 import { signSessionToken }    from '../services/jwt.js';
 import {
-  upsertGoogle, registerWithEmail, loginWithEmail, publicProfile,
+  upsertGoogle, registerWithEmail, loginWithEmail, updateProfile, publicProfile,
 } from '../services/userStore.js';
 import { requireAuth }         from '../middleware/requireAuth.js';
 
@@ -84,4 +84,17 @@ authRouter.get('/me', requireAuth, (req, res) => {
 authRouter.post('/logout', requireAuth, (_req, res) => {
   // Stateless JWT — nothing to do server-side until we add a blacklist.
   res.status(204).end();
+});
+
+/* ── Profile (reusable resume seed) ───────────────────────────────────────── */
+
+authRouter.patch('/profile', requireAuth, async (req, res) => {
+  try {
+    const user = await updateProfile(req.user.id, req.body || {});
+    res.json(publicProfile(user));
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('Profile update failed:', err);
+    res.status(500).json({ error: 'Could not save profile.' });
+  }
 });

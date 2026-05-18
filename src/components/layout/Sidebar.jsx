@@ -5,26 +5,22 @@
 
 import { useEffect } from 'react';
 import { Icon } from '@components/common/Icon.jsx';
-import { useAuth } from '@hooks/useAuth.js';
 import { useIsMobile } from '@hooks/useMediaQuery.js';
 import { NavItem } from './NavItem.jsx';
 
 const WIDTH = 220;
 
 export function Sidebar({ activeNav, setNav, onNewDesign, open = true, onClose }) {
-  const { isAuthenticated } = useAuth();
   const isMobile = useIsMobile();
 
-  // Profile only appears for signed-in users — for everyone else there's
-  // nothing meaningful behind it. Sign-out happens via the topbar avatar.
+  // Profile is reached from the avatar dropdown in the topbar — not here.
   const navItems = [
     { id: 'home',      label: 'Home',        icon: <Icon name="home" /> },
     { id: 'magic',     label: 'Magic Tool',  icon: <Icon name="sparkle" />, badge: 'NEW' },
     { id: 'templates', label: 'Templates',   icon: <Icon name="grid" />, badge: '24' },
     { id: 'designs',   label: 'My designs',  icon: <Icon name="file" />, badge: '4'  },
     { id: 'starred',   label: 'Starred',     icon: <Icon name="star" /> },
-    isAuthenticated && { id: 'profile', label: 'Profile', icon: <Icon name="user" /> },
-  ].filter(Boolean);
+  ];
 
   // Esc closes the drawer on mobile
   useEffect(() => {

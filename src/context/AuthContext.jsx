@@ -86,12 +86,28 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  /**
+   * Save the reusable resume profile (name/title/email/phone/location/bio/...)
+   * that's auto-seeded into every new template. Returns the merged profile.
+   */
+  const updateProfile = useCallback(async (patch) => {
+    setError(null);
+    const updated = await authService.updateProfile(patch);
+    // Merge into our cached user so consumers re-render immediately.
+    setUser((prev) => prev
+      ? { ...prev, profile: updated.profile || { ...(prev.profile || {}), ...patch } }
+      : prev,
+    );
+    return updated.profile || patch;
+  }, []);
+
   const value = {
     user, loading, error,
     isAuthenticated: !!user,
     isAuthRequired,
     isAdmin: !!user?.isAdmin,
-    googleLogin, passwordLogin, register, logout,
+    profile: user?.profile || {},
+    googleLogin, passwordLogin, register, logout, updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

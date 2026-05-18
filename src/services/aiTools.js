@@ -16,20 +16,165 @@ const STRONG_VERBS = ['Led', 'Built', 'Shipped', 'Designed', 'Architected', 'Own
 
 const FILLER_WORDS = /\b(very|really|just|quite|simply|basically|actually|literally|definitely|absolutely|kind of|sort of)\s+/gi;
 
-// Common ATS keywords by domain — used by ATS Optimization
-const ATS_DICT = {
-  general: ['Agile', 'Scrum', 'Cross-functional', 'Stakeholders', 'KPI', 'OKR', 'Roadmap', 'Strategy', 'Mentorship', 'Leadership', 'Collaboration', 'Analytics', 'Optimization'],
-  engineering: ['Production', 'Scalable', 'Distributed', 'Microservices', 'API', 'CI/CD', 'Testing', 'Deployment', 'Performance', 'Latency', 'Throughput', 'Reliability'],
-  design: ['User Research', 'Design System', 'Wireframes', 'Prototyping', 'Accessibility', 'A/B Testing', 'User Flow', 'Information Architecture'],
-  product: ['Product Strategy', 'Roadmap', 'PRD', 'OKRs', 'KPIs', 'User Insights', 'Market Research', 'Cross-functional', 'Stakeholder Management'],
+/* ──────────────────────────────────────────────────────────────────────────
+ * Role library — every helper that produces resume content (summary, bullets,
+ * skills) reads from here, keyed by domain. The detector below maps a free-
+ * form job title onto one of these keys; anything unrecognised falls back to
+ * 'general'. Keep entries grounded — bullet starters should sound like real
+ * impact, not buzzword soup.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const ROLE_LIBRARY = {
+  engineering: {
+    label: 'engineering',
+    summaryAdj: ['production-minded', 'pragmatic', 'systems-thinking', 'detail-oriented'],
+    summaryFocus: ['distributed systems', 'reliability', 'developer experience', 'performance at scale'],
+    bullets: [
+      'Led migration of {service} to a microservices architecture, cutting p99 latency by 38%',
+      'Designed and shipped a new {feature} pipeline handling {N}M+ requests/day',
+      'Reduced incident MTTR by 50% by adding structured tracing and SLO-driven alerts',
+      'Mentored {N} junior engineers; two were promoted to senior within 18 months',
+      'Authored the team handbook now used to onboard every new hire',
+      'Owned migration from {legacy} to {new}; zero customer-facing downtime',
+      'Built CI/CD pipeline in {tool}; deploy time fell from 30 min → 4 min',
+      'Drove 20% reduction in cloud spend by right-sizing instances and adding autoscaling',
+    ],
+    skills: ['Python', 'TypeScript', 'Go', 'AWS', 'Kubernetes', 'Docker', 'PostgreSQL', 'Redis', 'gRPC', 'CI/CD', 'Distributed Systems', 'System Design'],
+    atsKeywords: ['Production', 'Scalable', 'Distributed', 'Microservices', 'API', 'CI/CD', 'Testing', 'Deployment', 'Performance', 'Latency', 'Throughput', 'Reliability'],
+  },
+
+  design: {
+    label: 'design',
+    summaryAdj: ['user-centred', 'systems-thinking', 'craft-obsessed', 'research-grounded'],
+    summaryFocus: ['design systems', 'cross-platform consistency', 'user research', 'accessibility'],
+    bullets: [
+      'Led redesign of {flow}, increasing completion by 32% and reducing support tickets by 18%',
+      'Built and maintained the {name} design system used by {N} product teams',
+      'Facilitated {N}+ usability sessions across {N} countries to validate the new {feature}',
+      'Partnered with engineering to ship the first WCAG-AA compliant {product}',
+      'Reduced design-to-dev handoff time by 40% with a tokenised Figma component library',
+      'Defined visual language and brand system used across web, mobile, and marketing',
+      'Mentored {N} junior designers and ran weekly critique sessions',
+      'Shipped {N} A/B tests; winners drove +12% conversion lift on the signup flow',
+    ],
+    skills: ['Figma', 'Prototyping', 'User Research', 'Design Systems', 'Accessibility', 'Motion Design', 'A/B Testing', 'Interaction Design', 'Visual Design', 'Information Architecture'],
+    atsKeywords: ['User Research', 'Design System', 'Wireframes', 'Prototyping', 'Accessibility', 'A/B Testing', 'User Flow', 'Information Architecture', 'Usability'],
+  },
+
+  product: {
+    label: 'product',
+    summaryAdj: ['outcome-driven', 'data-informed', 'cross-functional', 'customer-obsessed'],
+    summaryFocus: ['product strategy', 'roadmap execution', 'metrics that matter', 'cross-functional alignment'],
+    bullets: [
+      'Owned the {area} roadmap end-to-end; shipped {N} releases hitting every quarterly OKR',
+      'Defined and tracked KPIs for {feature}; drove +24% activation in the first 90 days',
+      'Partnered with engineering and design to launch {product}, reaching {N}K MAU in 6 months',
+      'Ran the {area} discovery cycle — {N} customer interviews + competitive analysis',
+      'Authored {N} PRDs and led weekly cross-functional standups',
+      'Reduced churn by 14% by surfacing in-product education at the right moments',
+      'Built dashboards in {tool} to track north-star and counter metrics weekly',
+      'Influenced pricing strategy that lifted ARPU by 18% on annual plans',
+    ],
+    skills: ['Product Strategy', 'Roadmapping', 'User Research', 'PRD Writing', 'SQL', 'Analytics', 'A/B Testing', 'Mixpanel', 'Stakeholder Management', 'Cross-functional Leadership'],
+    atsKeywords: ['Product Strategy', 'Roadmap', 'PRD', 'OKRs', 'KPIs', 'User Insights', 'Market Research', 'Cross-functional', 'Stakeholder Management'],
+  },
+
+  data: {
+    label: 'data',
+    summaryAdj: ['rigorous', 'pragmatic', 'production-minded', 'curious'],
+    summaryFocus: ['experimentation', 'forecasting', 'data pipelines', 'self-serve analytics'],
+    bullets: [
+      'Built an experimentation platform handling {N}+ concurrent A/B tests across product surfaces',
+      'Designed forecasting model that beat the existing baseline by {N}% on weekly revenue prediction',
+      'Owned the data warehouse migration from {legacy} → {new}; halved query costs',
+      'Partnered with product to define the activation metric now reported at the company all-hands',
+      'Created self-serve dashboards in {tool} that retired {N}+ ad-hoc requests/month',
+      'Mentored {N} analysts on causal inference and experiment design',
+      'Reduced data freshness from 24h → 30 min for the executive KPI dashboard',
+      'Shipped feature store powering {N} ML models in production',
+    ],
+    skills: ['SQL', 'Python', 'dbt', 'Airflow', 'Snowflake', 'BigQuery', 'Looker', 'A/B Testing', 'Causal Inference', 'Statistics', 'Machine Learning', 'Forecasting'],
+    atsKeywords: ['Experimentation', 'Hypothesis Testing', 'Forecasting', 'Statistical Significance', 'Cohort Analysis', 'Data Pipelines', 'Warehousing'],
+  },
+
+  marketing: {
+    label: 'marketing',
+    summaryAdj: ['brand-led', 'metrics-driven', 'storytelling-first', 'channel-fluent'],
+    summaryFocus: ['growth', 'positioning', 'lifecycle', 'content + paid'],
+    bullets: [
+      'Grew the {channel} channel from {N}K → {N}M monthly visitors in 18 months',
+      'Launched {N} integrated campaigns across paid, organic, and lifecycle; +27% pipeline contribution',
+      'Owned brand refresh — new identity, messaging, and website; +33% time on page',
+      'Built and managed a content engine producing {N} pieces/quarter at sub-$50 CPM',
+      'Improved trial → paid conversion by 19% by re-segmenting the lifecycle program',
+      'Partnered with sales on ABM motion targeting {N} accounts; closed {N}M in pipeline',
+      'Defined the brand voice and writing guidelines now used company-wide',
+      'Owned the swag and event playbook; ran {N} regional roadshows under a single budget',
+    ],
+    skills: ['SEO', 'Paid Acquisition', 'Lifecycle Marketing', 'Brand', 'Content Strategy', 'Copywriting', 'HubSpot', 'Marketo', 'GA4', 'Attribution', 'Webflow', 'A/B Testing'],
+    atsKeywords: ['Positioning', 'GTM', 'Pipeline', 'MQL', 'SQL', 'CAC', 'LTV', 'Funnel', 'Conversion'],
+  },
+
+  sales: {
+    label: 'sales',
+    summaryAdj: ['quota-crushing', 'consultative', 'pipeline-focused', 'customer-obsessed'],
+    summaryFocus: ['enterprise sales', 'pipeline generation', 'territory ownership', 'multi-threading'],
+    bullets: [
+      'Closed {N}M in ARR in FY{year} — {N}% of quota, top {N}% in the region',
+      'Built outbound playbook adopted by the full {N}-person AE team',
+      'Multi-threaded {N} enterprise accounts; closed {logo} as the largest deal of the quarter',
+      'Reduced sales cycle by 19 days by introducing structured discovery in stage 1',
+      'Owned the {region} territory end-to-end — pipeline gen, mid-funnel, close',
+      'Partnered with marketing on ABM motion; sourced {N}M in net-new pipeline',
+      'Mentored {N} new AEs through ramp; all hit quota in their first full quarter',
+    ],
+    skills: ['Enterprise Sales', 'MEDDPICC', 'Solution Selling', 'Outbound', 'Salesforce', 'Outreach', 'Account Planning', 'Negotiation', 'Forecasting'],
+    atsKeywords: ['Quota', 'Pipeline', 'Closed Won', 'ARR', 'ACV', 'TCV', 'Outbound', 'Multi-threaded', 'Discovery', 'Negotiation'],
+  },
+
+  general: {
+    label: 'general',
+    summaryAdj: ['cross-functional', 'pragmatic', 'outcome-focused', 'collaborative'],
+    summaryFocus: ['delivering measurable impact', 'building strong teams', 'shipping pragmatic solutions'],
+    bullets: [
+      'Led {project} from concept to launch, hitting all milestones on schedule',
+      'Mentored {N} team members; two were promoted within 12 months',
+      'Authored process documentation that became the team standard',
+      'Owned cross-functional coordination across engineering, design, and stakeholders',
+      'Drove measurable improvements in {metric}, +{N}% in the first quarter',
+      'Reduced operational overhead by 25% by automating recurring workflows',
+    ],
+    skills: ['Cross-functional Collaboration', 'Project Management', 'Stakeholder Management', 'Strategic Planning', 'Communication', 'Mentorship'],
+    atsKeywords: ['Agile', 'Scrum', 'Cross-functional', 'Stakeholders', 'KPI', 'OKR', 'Roadmap', 'Strategy', 'Mentorship', 'Leadership', 'Collaboration'],
+  },
 };
 
+// Legacy alias — older callers still expect `ATS_DICT`. Map each role to its
+// dictionary so atsOptimize() keeps working without a touch.
+const ATS_DICT = Object.fromEntries(
+  Object.entries(ROLE_LIBRARY).map(([k, v]) => [k, v.atsKeywords]),
+);
+
+/** Best-effort detection of which role library entry to use. Looks at the
+ *  job title (and falls back to the summary if the title is empty). */
 function detectDomain(person) {
   const t = (person?.title || '').toLowerCase();
-  if (/engineer|developer|software|programming/.test(t)) return 'engineering';
-  if (/design|ux|ui|product designer/.test(t))           return 'design';
-  if (/product manager|pm|strategy/.test(t))             return 'product';
+  const s = (person?.summary || '').toLowerCase();
+  const haystack = `${t} ${s}`;
+  if (/data scientist|data engineer|analyst|machine learning|ml engineer|ai engineer/.test(haystack)) return 'data';
+  if (/engineer|developer|software|programming|swe|backend|frontend|full[\s-]?stack|devops|sre/.test(haystack)) return 'engineering';
+  if (/design|ux|ui|brand designer|art director|illustrator/.test(haystack)) return 'design';
+  if (/product manager|product lead|pm\b|product owner|growth product/.test(haystack)) return 'product';
+  if (/marketing|brand manager|content|seo|growth marketer|demand gen/.test(haystack))   return 'marketing';
+  if (/sales|account executive|\bae\b|account manager|business development|\bbdr\b|\bsdr\b/.test(haystack)) return 'sales';
   return 'general';
+}
+
+/** Public for callers that want to inspect the live library (e.g. magic-tool
+ *  ExperienceStep showing suggestion chips for the current role). */
+export function getRoleProfile(person) {
+  const domain = detectDomain(person);
+  return { domain, ...ROLE_LIBRARY[domain] };
 }
 
 function hasMetric(text) {
@@ -197,16 +342,82 @@ export async function atsOptimize(person) {
 }
 
 // ── 7. Generate Summary ───────────────────────────────────────────────
+//
+// Builds a tailored summary from whatever lives on `person` right now — so
+// passing the magic-tool's edited person gives a summary about the user's
+// chosen title, while a freshly-seeded profile (from the registered account)
+// gives a summary about that. The function is pure — caller decides which
+// person object to hand it.
+
 export async function generateSummary(person) {
   await delay(THINK_MS);
-  const years = computeYears(person);
-  const topExp = (person.experience || [])[0];
-  const skills = (person.skills || []).slice(0, 4).join(', ');
-  const title = person.title || 'professional';
-  const yearsClause = years > 0 ? `${years}+ years ` : '';
-  const expClause = topExp ? ` Most recently at ${topExp.company} as ${topExp.role}.` : '';
-  const skillsClause = skills ? ` Strong skills in ${skills}.` : '';
-  return `Experienced ${title} with ${yearsClause}of building and shipping high-impact work.${expClause}${skillsClause} Passionate about quality, collaboration, and delivering measurable results.`;
+  const role     = getRoleProfile(person);
+  const years    = computeYears(person);
+  const topExp   = (person.experience || [])[0];
+  const skills   = (person.skills || []).slice(0, 4).join(', ');
+  const title    = person.title || 'professional';
+
+  // Pick deterministic-feeling but slightly varied phrasing from the library.
+  const adj   = pick(role.summaryAdj,   title);
+  const focus = pick(role.summaryFocus, person.name || title);
+
+  const yearsClause = years > 0 ? `${years}+ years` : 'multiple years';
+  const expClause   = topExp ? ` Most recently at ${topExp.company} as ${topExp.role}.` : '';
+  const skillsClause = skills ? ` Strong in ${skills}.` : '';
+
+  return `${capitalise(adj)} ${title} with ${yearsClause} of experience focused on ${focus}.${expClause}${skillsClause} Known for shipping pragmatic work that moves the metrics that matter.`;
+}
+
+/** Stable pseudo-random pick from `arr` keyed by `seed` — same seed always
+ *  picks the same item, so repeated calls don't churn the summary. */
+function pick(arr, seed) {
+  if (!arr?.length) return '';
+  const s = String(seed || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return arr[h % arr.length];
+}
+function capitalise(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+// ── 7b. Suggest bullets — role-aware ──────────────────────────────────
+//
+// Returns 6–8 strong bullet-point starters tailored to the user's job title.
+// Token placeholders like {service}, {N}, {feature} are kept so the user
+// can fill them in — they read like prompts rather than fake claims.
+
+export async function suggestBullets(person, count = 8) {
+  await delay(THINK_MS - 200);
+  const role = getRoleProfile(person);
+  const bullets = role.bullets || [];
+  // Rotate the starting offset based on the title so different titles see a
+  // slightly different bullet ordering — feels less canned.
+  const seedStart = Math.abs(hashCode(person.title || '')) % bullets.length;
+  const out = [];
+  for (let i = 0; i < Math.min(count, bullets.length); i++) {
+    out.push(bullets[(seedStart + i) % bullets.length]);
+  }
+  return { domain: role.domain, bullets: out };
+}
+
+// ── 7c. Suggest skills — role-aware ──────────────────────────────────
+
+export async function suggestSkillsForRole(person, count = 10) {
+  await delay(THINK_MS - 250);
+  const role  = getRoleProfile(person);
+  const have  = new Set((person.skills || []).map((s) => s.toLowerCase()));
+  const all   = role.skills || [];
+  const fresh = all.filter((s) => !have.has(s.toLowerCase()));
+  return {
+    domain: role.domain,
+    suggested: fresh.slice(0, count),
+    alreadyHave: all.filter((s) => have.has(s.toLowerCase())),
+  };
+}
+
+function hashCode(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
+  return h;
 }
 
 function computeYears(person) {
@@ -338,4 +549,7 @@ export const aiTools = {
   generateSummary,
   tailorForJD,
   analyzeResume,
+  suggestBullets,
+  suggestSkillsForRole,
+  getRoleProfile,
 };
