@@ -38,6 +38,7 @@ export function RightPanel({ open = true, onToggle }) {
   const {
     template, sections, accent, fontPair, person,
     setSections, setAccent, setFontPair, applyAI, patchPerson,
+    switchTemplate,
     fontScale, lineHeight, sectionGap, bulletStyle,
     setFontScale, setLineHeight, setSectionGap, setBulletStyle,
   } = useDocument();
@@ -126,9 +127,15 @@ export function RightPanel({ open = true, onToggle }) {
   return (
     <div style={{
       width: open ? width : RIGHT_PANEL_RAIL_W,
+      // Anchor to full editor-row height so the inner scrollable child can
+      // calc its `flex: 1` against a real bound. Without `height: 100%` the
+      // panel auto-grows with its content and the scrollable area never
+      // overflows — which is why nothing was scrolling earlier.
+      height: '100%',
       background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'relative',
       overflow: 'hidden',  // hide content as the panel shrinks
+      minHeight: 0,        // flexbox: allow children to constrain to parent height
       // Skip the transition while the user is actively dragging so the panel
       // tracks the cursor 1:1; restore it for the open/close animation.
       transition: dragging ? 'none' : RIGHT_PANEL_TRANSITION,
@@ -177,10 +184,14 @@ export function RightPanel({ open = true, onToggle }) {
 
       {/* Inner content — width tracks the wrapper so the tabs/forms reflow
           as the user resizes. Opacity fades it out when the panel collapses
-          so the slide animation stays clean. */}
+          so the slide animation stays clean. minHeight:0 + height:100% so the
+          inner scrollable child knows its real height (without it, flexbox
+          lets this column grow with its content and overflow never kicks in). */}
       <div style={{
         width: open ? width : RIGHT_PANEL_DEFAULT_W,
+        height: '100%',
         display: 'flex', flexDirection: 'column', flex: 1,
+        minHeight: 0,
         opacity: open ? 1 : 0,
         pointerEvents: open ? 'auto' : 'none',
         transition: dragging ? 'none' : 'opacity 180ms ease, width 180ms ease',
@@ -205,7 +216,9 @@ export function RightPanel({ open = true, onToggle }) {
         })}
       </div>
 
-      <div data-otango-yellow-scroll style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+      <div data-otango-yellow-scroll style={{
+        flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 12px',
+      }}>
         {tab === 'sections' && (
           <SectionsTab
             sections={sections}
@@ -234,6 +247,7 @@ export function RightPanel({ open = true, onToggle }) {
         {tab === 'elements' && (
           <TemplatesTab
             templates={templates} template={template}
+            onSwitch={switchTemplate}
           />
         )}
 
@@ -457,7 +471,7 @@ function BulletPicker({ value, onChange }) {
   );
 }
 
-function TemplatesTab({ templates, template }) {
+function TemplatesTab({ templates, template, onSwitch }) {
   const sameCat = templates.filter((t) => t.cat === template?.cat);
   return (
     <div>
@@ -471,11 +485,31 @@ function TemplatesTab({ templates, template }) {
       {sameCat.map((t) => {
         const active = t.id === template?.id;
         return (
-          <div key={t.id} style={{
-            borderRadius: 10, overflow: 'hidden', marginBottom: 10, cursor: 'pointer',
-            border: active ? '2px solid #1756C8' : '1px solid var(--border)',
-            transition: 'all 150ms',
-          }}>
+          <div key={t.id}
+            // Click anywhere on the card swaps the current template to this one.
+            // We guard against re-swapping the already-active one so the
+            // history doesn't churn with no-op edits.
+            onClick={() => { if (!active && onSwitch) onSwitch(t); }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') && !active && onSwitch) {
+                e.preventDefault();
+                onSwitch(t);
+              }
+            }}
+            style={{
+              borderRadius: 10, overflow: 'hidden', marginBottom: 10, cursor: 'pointer',
+              border: active ? '2px solid #1756C8' : '1px solid var(--border)',
+              transition: 'all 150ms',
+            }}
+            onMouseEnter={(e) => {
+              if (!active) e.currentTarget.style.borderColor = 'rgba(23,86,200,0.45)';
+            }}
+            onMouseLeave={(e) => {
+              if (!active) e.currentTarget.style.borderColor = 'var(--border)';
+            }}
+          >
             <TemplateThumbnail template={t} scale={0.35} />
             <div style={{
               padding: '6px 10px', background: 'var(--bg-elevated)',

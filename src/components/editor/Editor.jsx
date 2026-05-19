@@ -4,8 +4,6 @@ import { TemplateCanvas } from '@components/canvas/TemplateCanvas.jsx';
 
 import { EditorToolbar }    from './EditorToolbar.jsx';
 import { EditorBottomBar }  from './EditorBottomBar.jsx';
-import { ToolStrip }        from './ToolStrip.jsx';
-import { TemplateSwitcher } from './TemplateSwitcher.jsx';
 import { RightPanel }       from './RightPanel.jsx';
 import { ExportModal }      from './ExportModal.jsx';
 import { ZOOM_LIMITS }      from './ZoomControls.jsx';
@@ -14,24 +12,25 @@ import { useIsMobile }      from '@hooks/useMediaQuery.js';
 const { MIN: ZMIN, MAX: ZMAX, STEP: ZSTEP } = ZOOM_LIMITS;
 
 /**
- * Top-level editor screen. Composes the toolbar, left tool strip, the canvas,
- * the right panel, and the export modal. All shared state lives in
- * `DocumentContext` — this component just wires the chrome together.
+ * Top-level editor screen. Composes the toolbar, the canvas, the right panel,
+ * and the export modal. All shared state lives in `DocumentContext` — this
+ * component just wires the chrome together.
+ *
+ * Note: the old Canva-style left tool strip (Select / Text / Image / Shapes /
+ * Layers / Templates) was removed — its features either lived in the
+ * contentEditable canvas directly, or moved to the right panel. Switching
+ * template now happens via the right panel's Templates tab.
  */
 export function Editor({ onBack }) {
   const {
-    template, sections, person, accent, fontPair, pageSize,
-    switchTemplate, canvasRef,
+    template, sections, person, accent, fontPair, pageSize, canvasRef,
     patchPath, setSections,
     fontScale, lineHeight, sectionGap, bulletStyle,
     undo, redo, canUndo, canRedo,
   } = useDocument();
 
   const [zoom, setZoom]                   = useState(0.9);
-  const [activeTool, setActiveTool]       = useState('select');
   const [showExport, setShowExport]       = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [leftOpen, setLeftOpen]           = useState(true);
   const [rightOpen, setRightOpen]         = useState(true);
 
   const isMobile = useIsMobile();
@@ -90,21 +89,14 @@ export function Editor({ onBack }) {
       if (mod) return;
       if (isEditable) return;
 
-      // Panel toggles — '[' for the left tool palette, ']' for the right tabs.
-      if (e.key === '[')  { e.preventDefault(); setLeftOpen((v) => !v);  return; }
-      if (e.key === ']')  { e.preventDefault(); setRightOpen((v) => !v); return; }
-      if (e.key === '\\') { e.preventDefault(); const next = !(leftOpen && rightOpen); setLeftOpen(next); setRightOpen(next); return; }
-
-      const key = e.key.toLowerCase();
-      if (key === 'v') setActiveTool('select');
-      if (key === 't') setActiveTool('text');
-      if (key === 'i') setActiveTool('image');
-      if (key === 's') setActiveTool('shapes');
-      if (key === 'l') setActiveTool('layers');
+      // ']' toggles the right tabs panel. The old '[' / '\\' shortcuts used to
+      // collapse the left tool strip — that panel was removed, so they're
+      // gone too.
+      if (e.key === ']') { e.preventDefault(); setRightOpen((v) => !v); return; }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, canUndo, canRedo, fitZoom, leftOpen, rightOpen]);
+  }, [undo, redo, canUndo, canRedo, fitZoom]);
 
   // Ctrl/Cmd + wheel zoom on the canvas viewport
   useEffect(() => {
@@ -135,21 +127,6 @@ export function Editor({ onBack }) {
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <ToolStrip
-          activeTool={activeTool} setActiveTool={setActiveTool}
-          templatesOpen={showTemplates}
-          onToggleTemplates={() => setShowTemplates((v) => !v)}
-          open={leftOpen} onToggle={() => setLeftOpen((v) => !v)}
-        />
-
-        {showTemplates && (
-          <TemplateSwitcher
-            currentTemplate={template}
-            onSwitch={switchTemplate}
-            onClose={() => setShowTemplates(false)}
-          />
-        )}
-
         {/* Canvas viewport — Cmd/Ctrl + wheel zooms */}
         <div ref={viewportRef} style={{
           flex: 1, background: 'var(--bg-canvas)', display: 'flex',
