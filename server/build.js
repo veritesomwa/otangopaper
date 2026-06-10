@@ -13,7 +13,7 @@
 //
 // Replace this script with esbuild's CLI if you prsefer:
 //   esbuild src/index.js --bundle --platform=node --target=node18 \
-//     --format=esm --packages=external --outfile=dist/server.js \
+//     --format=esm --packages=external --outfile=dist/servers.js \
 //     --minify --sourcemap
 
 import { build } from "esbuild"
