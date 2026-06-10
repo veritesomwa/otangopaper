@@ -11,45 +11,45 @@
 // Run with:   npm run build
 // Then run:   npm run start:prod
 //
-// Replace this script with esbuild's CLI if you prefer:
+// Replace this script with esbuild's CLI if you prsefer:
 //   esbuild src/index.js --bundle --platform=node --target=node18 \
 //     --format=esm --packages=external --outfile=dist/server.js \
 //     --minify --sourcemap
 
-import { build } from 'esbuild';
-import { rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { build } from "esbuild"
+import { rm } from "node:fs/promises"
+import { existsSync } from "node:fs"
 
-const outdir = 'dist';
+const outdir = "dist"
 
 if (existsSync(outdir)) {
-  await rm(outdir, { recursive: true, force: true });
+  await rm(outdir, { recursive: true, force: true })
 }
 
 const result = await build({
-  entryPoints: ['src/index.js'],
-  outfile:     `${outdir}/server.js`,
-  bundle:      true,
-  platform:    'node',
-  target:      'node18',
-  format:      'esm',
+  entryPoints: ["src/index.js"],
+  outfile: `${outdir}/server.js`,
+  bundle: true,
+  platform: "node",
+  target: "node18",
+  format: "esm",
   // Keep deps external — they live in node_modules at runtime. Bundling
   // packages with native bindings (bcrypt-style) is fragile; this also keeps
   // the artefact tiny.
-  packages:    'external',
-  minify:      true,
-  sourcemap:   true,
-  legalComments: 'none',
-  logLevel:    'info',
+  packages: "external",
+  minify: true,
+  sourcemap: true,
+  legalComments: "none",
+  logLevel: "info",
   // Add a shebang so the file is directly runnable too: `./dist/server.js`
   banner: {
-    js: '#!/usr/bin/env node\n',
+    js: "#!/usr/bin/env node\n",
   },
-});
+})
 
 if (result.errors?.length) {
-  console.error(result.errors);
-  process.exit(1);
+  console.error(result.errors)
+  process.exit(1)
 }
 
-console.log(`✓ Built ${outdir}/server.js`);
+console.log(`✓ Built ${outdir}/server.js`)
